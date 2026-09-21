@@ -1,0 +1,1550 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WikiRace P2P - Real-Time Multiplayer Wikipedia Speedrun</title>
+  
+  <!-- Tailwind CSS with Typography Plugin -->
+  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Canvas Confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- PeerJS for WebRTC P2P Multiplayer -->
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <style>
+    /* Scoped Wikipedia Article Styling */
+    #wiki-content {
+      word-break: break-word;
+    }
+    #wiki-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.5rem;
+      margin: 1rem auto;
+    }
+    #wiki-content table {
+      display: block;
+      overflow-x: auto;
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+      font-size: 0.875rem;
+    }
+    #wiki-content table td, #wiki-content table th {
+      border: 1px solid rgba(156, 163, 175, 0.3);
+      padding: 0.5rem 0.75rem;
+    }
+    #wiki-content .infobox {
+      float: right;
+      clear: right;
+      margin: 0 0 1rem 1rem;
+      max-width: 320px;
+      background: rgba(243, 244, 246, 0.8);
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid rgba(209, 213, 219, 0.8);
+      font-size: 0.85rem;
+    }
+    .dark #wiki-content .infobox {
+      background: rgba(31, 41, 55, 0.8);
+      border-color: rgba(55, 65, 81, 0.8);
+    }
+    @media (max-width: 640px) {
+      #wiki-content .infobox {
+        float: none;
+        width: 100%;
+        max-width: 100%;
+        margin: 1rem 0;
+      }
+    }
+    /* Hide Wikipedia edit links, references, audio tags & clutter */
+    #wiki-content .mw-editsection,
+    #wiki-content .reference,
+    #wiki-content .reflist,
+    #wiki-content .navbox,
+    #wiki-content .vertical-navbox,
+    #wiki-content .sidebar,
+    #wiki-content .catlinks,
+    #wiki-content .printfooter,
+    #wiki-content .mw-jump-link,
+    #wiki-content .hatnote,
+    #wiki-content .ambox,
+    #wiki-content .noprint {
+      display: none !important;
+    }
+
+    /* Standardized Wiki Links */
+    #wiki-content a[href^="/wiki/"] {
+      color: #2563eb;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: all 0.15s ease;
+      font-weight: 500;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+    #wiki-content a[href^="/wiki/"]:hover {
+      background-color: rgba(59, 130, 246, 0.15);
+      color: #1d4ed8;
+    }
+    .dark #wiki-content a[href^="/wiki/"] {
+      color: #60a5fa;
+    }
+    .dark #wiki-content a[href^="/wiki/"]:hover {
+      background-color: rgba(96, 165, 250, 0.2);
+      color: #93c5fd;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.5);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(107, 114, 128, 0.8);
+    }
+  </style>
+</head>
+
+<body class="h-full bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans flex flex-col antialiased transition-colors duration-200">
+
+  <!-- Top Navigation Header -->
+  <header class="sticky top-0 z-30 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
+      
+      <!-- Brand & Mode Title -->
+      <div class="flex items-center gap-2 shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <i data-lucide="zap" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-extrabold text-base sm:text-lg leading-none tracking-tight text-slate-900 dark:text-white">WikiRace</h1>
+            <span id="mode-badge" class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300">Solo</span>
+          </div>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium hidden sm:block">P2P Speedrun Arena</p>
+        </div>
+      </div>
+
+      <!-- Center HUD / Stats Dashboard -->
+      <div id="game-hud" class="flex items-center gap-2 sm:gap-4 bg-slate-100 dark:bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs sm:text-sm">
+        <!-- Timer -->
+        <div class="flex items-center gap-1.5 font-mono font-bold text-slate-700 dark:text-slate-200" title="Elapsed Time">
+          <i data-lucide="timer" class="w-4 h-4 text-blue-500"></i>
+          <span id="timer-display">00:00.0</span>
+        </div>
+        
+        <div class="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
+
+        <!-- Steps Count -->
+        <div class="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200" title="Steps Taken">
+          <i data-lucide="footprints" class="w-4 h-4 text-emerald-500"></i>
+          <span>Steps: <span id="steps-display" class="text-emerald-600 dark:text-emerald-400">0</span></span>
+        </div>
+      </div>
+
+      <!-- Header Action Buttons -->
+      <div class="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <!-- Multiplayer Lobby Launcher -->
+        <button id="open-lobby-btn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-500/20 transition-all">
+          <i data-lucide="users" class="w-4 h-4"></i>
+          <span class="hidden md:inline">Multiplayer</span>
+        </button>
+
+        <!-- View Path Button -->
+        <button id="view-path-btn" class="relative flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 transition-all">
+          <i data-lucide="route" class="w-4 h-4 text-indigo-500"></i>
+          <span class="hidden lg:inline">Path</span>
+          <span id="path-badge" class="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-500 text-white font-bold">0</span>
+        </button>
+
+        <!-- New Race / Restart Button -->
+        <button id="new-race-btn" class="flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">New Race</span>
+        </button>
+
+        <!-- Dark / Light Theme Toggle -->
+        <button id="theme-toggle" class="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors" title="Toggle Light/Dark Theme">
+          <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+          <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- Live Opponent Progress Bar (Multiplayer Mode Only) -->
+  <div id="opponent-hud" class="hidden bg-slate-800 text-white px-4 py-2 border-b border-slate-700 shadow-md">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4 text-xs">
+      <div class="flex items-center gap-2 min-w-0">
+        <div class="relative">
+          <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping absolute top-0 left-0"></div>
+          <div class="w-3 h-3 rounded-full bg-emerald-500 relative"></div>
+        </div>
+        <span class="font-bold text-slate-300 shrink-0" id="opponent-name-label">Opponent:</span>
+        <span id="opponent-current-page" class="font-semibold text-amber-300 truncate">Waiting for start...</span>
+      </div>
+
+      <div class="flex items-center gap-4 shrink-0 font-mono text-slate-300">
+        <div>Steps: <strong id="opponent-steps-count" class="text-white">0</strong></div>
+        <div class="hidden sm:block">Time: <strong id="opponent-time-count" class="text-white">00:00.0</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Target Objective Banner -->
+  <div class="bg-indigo-600 dark:bg-indigo-950 text-white px-4 py-2 shadow-inner border-b border-indigo-700/50">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+      <div class="flex items-center gap-2 overflow-hidden max-w-full">
+        <span class="px-2 py-0.5 rounded bg-indigo-800/80 text-indigo-200 text-[11px] font-bold uppercase tracking-wider shrink-0">Objective</span>
+        <span class="truncate font-medium">Navigate from <strong id="start-target-text" class="text-indigo-200 underline">Start Article</strong> to <strong id="goal-target-text" class="text-amber-300 underline font-bold">Goal Article</strong></span>
+      </div>
+      <button id="preview-target-btn" class="hidden sm:flex items-center gap-1 text-xs text-indigo-200 hover:text-white underline shrink-0">
+        <i data-lucide="info" class="w-3.5 h-3.5"></i>
+        Preview Goal Summary
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Game Container -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-6 flex flex-col">
+    
+    <!-- Wiki Article Container Box -->
+    <div id="wiki-wrapper" class="relative flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200/80 dark:border-slate-700/80 p-4 sm:p-8 md:p-10 min-h-[500px]">
+      
+      <!-- Loading Overlay -->
+      <div id="wiki-loading" class="hidden absolute inset-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-2xl">
+        <div class="w-12 h-12 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mb-3"></div>
+        <p class="text-slate-600 dark:text-slate-300 font-medium animate-pulse text-sm">Fetching Wikipedia Page...</p>
+      </div>
+
+      <!-- Current Article Header -->
+      <div id="article-header" class="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span id="current-badge" class="text-xs font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider">Current Article</span>
+          <h2 id="article-title" class="text-2xl sm:text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-0.5">Welcome to WikiRace!</h2>
+        </div>
+        <button id="undo-step-btn" class="hidden items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 rounded-lg transition-colors" title="Go back to previous page">
+          <i data-lucide="undo" class="w-3.5 h-3.5"></i>
+          Undo Step
+        </button>
+      </div>
+
+      <!-- Article Content Render Area (Strictly Scoped for Link Delegation) -->
+      <div id="wiki-content" class="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-200">
+        <div class="text-center py-12">
+          <div class="w-16 h-16 bg-gradient-to-tr from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/30">
+            <i data-lucide="swords" class="w-8 h-8"></i>
+          </div>
+          <h3 class="text-xl font-bold mb-2">Ready to Race?</h3>
+          <p class="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6 text-sm">
+            Play solo speedruns or invite a friend for a 1v1 real-time WebRTC WikiRace match right inside your browser!
+          </p>
+          <div class="flex flex-wrap justify-center gap-3">
+            <button id="start-idle-btn" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all">
+              Solo Speedrun 🏁
+            </button>
+            <button id="start-p2p-idle-btn" class="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all">
+              1v1 Multiplayer ⚔️
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Multiplayer Lobby Modal -->
+  <div id="lobby-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md overflow-hidden transform transition-all">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-indigo-50/50 dark:bg-slate-800/80">
+        <div class="flex items-center gap-2">
+          <i data-lucide="users" class="w-5 h-5 text-indigo-600 dark:text-indigo-400"></i>
+          <h3 class="text-lg font-extrabold text-slate-900 dark:text-white">P2P Multiplayer Lobby</h3>
+        </div>
+        <button id="close-lobby-btn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5">
+        
+        <!-- Host / Join Selector -->
+        <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+          <button id="lobby-tab-host" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm transition-all">
+            Host Match
+          </button>
+          <button id="lobby-tab-join" class="flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 transition-all">
+            Join Match
+          </button>
+        </div>
+
+        <!-- HOST VIEW -->
+        <div id="lobby-host-view" class="space-y-4">
+          <div class="p-4 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900/50 text-center">
+            <div class="text-xs text-indigo-600 dark:text-indigo-300 font-bold uppercase tracking-wider mb-1">Your Room Code</div>
+            <div id="host-room-code" class="text-2xl font-black font-mono text-indigo-700 dark:text-indigo-300 tracking-widest my-1">----</div>
+            <button id="copy-room-link-btn" class="mt-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-all inline-flex items-center gap-1">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Direct Share Link
+            </button>
+          </div>
+
+          <!-- Peer Status -->
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-100 dark:bg-slate-900 text-xs">
+            <span class="text-slate-500 font-medium">Opponent Status:</span>
+            <span id="host-peer-status" class="font-bold text-amber-500 flex items-center gap-1">
+              <i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Waiting for player...
+            </span>
+          </div>
+
+          <!-- Selected Articles for Race -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Race Articles</label>
+              <button id="host-reroll-btn" class="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-semibold flex items-center gap-1">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> Randomize
+              </button>
+            </div>
+            <div class="p-3 bg-slate-50 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-1">
+              <div>Start: <strong id="host-start-text" class="text-slate-900 dark:text-white">---</strong></div>
+              <div>Target: <strong id="host-target-text" class="text-amber-600 dark:text-amber-400 font-bold">---</strong></div>
+            </div>
+          </div>
+
+          <button id="host-start-match-btn" disabled class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
+            <i data-lucide="play" class="w-4 h-4"></i> Start Multiplayer Race
+          </button>
+        </div>
+
+        <!-- JOIN VIEW -->
+        <div id="lobby-join-view" class="hidden space-y-4">
+          <div>
+            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">Enter Room Code</label>
+            <input type="text" id="join-code-input" placeholder="e.g. RACE-8492" class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 font-mono uppercase text-center text-lg font-bold tracking-widest focus:ring-2 focus:ring-indigo-500 focus:outline-none" />
+          </div>
+
+          <button id="connect-peer-btn" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2">
+            <i data-lucide="link" class="w-4 h-4"></i> Connect to Host
+          </button>
+
+          <div id="join-status-box" class="hidden p-3 rounded-xl bg-slate-100 dark:bg-slate-900 text-xs text-center font-semibold text-slate-600 dark:text-slate-300">
+            Connecting via WebRTC...
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 3-2-1 Synchronized Countdown Overlay -->
+  <div id="countdown-overlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md text-white hidden">
+    <div id="countdown-number" class="text-8xl font-black font-mono animate-bounce text-amber-400">3</div>
+    <div class="text-xl font-bold mt-4 tracking-widest text-slate-200">GET READY TO RACE!</div>
+  </div>
+
+  <!-- Slide-out Path History Sidebar / Drawer -->
+  <div id="path-drawer-overlay" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-40 transition-opacity duration-300 opacity-0 pointer-events-none"></div>
+  <aside id="path-drawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white dark:bg-slate-800 shadow-2xl border-l border-slate-200 dark:border-slate-700 z-50 transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+    <div class="p-4 sm:p-6 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <i data-lucide="route" class="w-5 h-5 text-indigo-500"></i>
+        <h3 class="font-bold text-lg text-slate-900 dark:text-white">Your Race Path</h3>
+      </div>
+      <button id="close-path-drawer-btn" class="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Path Steps List -->
+    <div id="path-list" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3">
+      <!-- Dynamic path items render here -->
+    </div>
+
+    <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex gap-2">
+      <button id="drawer-undo-btn" class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 transition-all flex items-center justify-center gap-1.5">
+        <i data-lucide="undo-2" class="w-4 h-4"></i>
+        Undo Step
+      </button>
+      <button id="drawer-copy-btn" class="flex-1 py-2 px-3 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-all flex items-center justify-center gap-1.5">
+        <i data-lucide="copy" class="w-4 h-4"></i>
+        Copy Path
+      </button>
+    </div>
+  </aside>
+
+  <!-- Solo Setup / Config Modal -->
+  <div id="setup-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-lg overflow-hidden transform transition-all">
+      <div class="p-6 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <i data-lucide="trophy" class="w-5 h-5 text-amber-500"></i>
+          Configure Solo Speedrun
+        </h3>
+        <button id="close-setup-modal-btn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-6">
+        <!-- Mode Tabs -->
+        <div class="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+          <button id="tab-random-btn" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition-all">
+            🎲 Random
+          </button>
+          <button id="tab-custom-btn" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 dark:text-slate-400 transition-all">
+            ✏️ Custom
+          </button>
+          <button id="tab-preset-btn" class="flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 dark:text-slate-400 transition-all">
+            ⭐ Challenges
+          </button>
+        </div>
+
+        <!-- Mode 1: Random -->
+        <div id="mode-random" class="space-y-4">
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Generates two completely random Wikipedia mainspace articles using the official MediaWiki API.
+          </p>
+          <div class="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 flex items-center justify-between">
+            <span class="text-sm font-semibold text-blue-900 dark:text-blue-200">Random Articles Ready</span>
+            <button id="roll-random-btn" class="px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-all flex items-center gap-1">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Re-roll
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode 2: Custom -->
+        <div id="mode-custom" class="hidden space-y-4">
+          <div class="relative">
+            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">Start Article</label>
+            <input type="text" id="custom-start-input" placeholder="e.g. Apple Inc." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <div id="start-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-10 hidden max-h-48 overflow-y-auto"></div>
+          </div>
+
+          <div class="relative">
+            <label class="block text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider mb-1">Target Goal Article</label>
+            <input type="text" id="custom-target-input" placeholder="e.g. Moon" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none" />
+            <div id="target-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-10 hidden max-h-48 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <!-- Mode 3: Presets -->
+        <div id="mode-presets" class="hidden space-y-2 max-h-60 overflow-y-auto">
+          <button data-start="Banana" data-target="Moon" class="preset-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 transition-all bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+            <div>
+              <div class="font-bold text-sm">Banana ➔ Moon</div>
+              <div class="text-xs text-slate-500">Easy • Classic route</div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">Easy</span>
+          </button>
+
+          <button data-start="Coffee" data-target="Quantum mechanics" class="preset-card w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 transition-all bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+            <div>
+              <div class="font-bold text-sm">Coffee ➔ Quantum mechanics</div>
+              <div class="text-xs text-slate-500">Medium • Beverage to Physics</div>
+            </div>
+            <span class="text-xs px-2 py-1 rounded bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 font-bold">Medium</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
+        <button id="cancel-setup-btn" class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl">Cancel</button>
+        <button id="start-race-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20">Start Speedrun 🚀</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Victory / Game Over Screen with Side-by-Side Comparison -->
+  <div id="victory-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-md hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-2xl overflow-hidden text-center p-6 sm:p-8 transform transition-all">
+      
+      <div id="vic-icon-box" class="w-16 h-16 bg-amber-100 dark:bg-amber-900/40 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-500/20">
+        <i data-lucide="crown" class="w-8 h-8"></i>
+      </div>
+      
+      <h2 id="vic-heading" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white mb-1">Victory! Goal Reached!</h2>
+      <p id="vic-subheading" class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mb-6">You reached the destination page first!</p>
+
+      <!-- Side-by-Side Path Comparison Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 text-left">
+        <!-- Your Path -->
+        <div class="p-4 bg-slate-50 dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-extrabold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Your Path</span>
+            <span id="vic-your-time" class="text-xs font-mono font-bold text-slate-500">00:00.0</span>
+          </div>
+          <div id="vic-your-path" class="text-xs space-y-1.5 max-h-36 overflow-y-auto font-medium"></div>
+        </div>
+
+        <!-- Opponent Path -->
+        <div id="vic-opponent-box" class="p-4 bg-slate-50 dark:bg-slate-900/80 rounded-2xl border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-extrabold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Opponent Path</span>
+            <span id="vic-opponent-time" class="text-xs font-mono font-bold text-slate-500">00:00.0</span>
+          </div>
+          <div id="vic-opponent-path" class="text-xs space-y-1.5 max-h-36 overflow-y-auto font-medium text-slate-500">
+            No multiplayer opponent
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button id="vic-share-btn" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2">
+          <i data-lucide="share-2" class="w-4 h-4"></i> Copy Summary
+        </button>
+        <button id="vic-play-again-btn" class="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg transition-all">
+          Play Again
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Goal Summary Preview Modal -->
+  <div id="target-preview-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs hidden">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-full max-w-md overflow-hidden p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 id="target-modal-title" class="text-lg font-bold text-slate-900 dark:text-white">Goal Article Preview</h3>
+        <button id="close-target-preview-btn" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="target-modal-body" class="text-xs text-slate-600 dark:text-slate-300 leading-relaxed max-h-60 overflow-y-auto mb-4">
+        Loading preview...
+      </div>
+      <div class="text-right">
+        <button id="target-modal-ok-btn" class="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    /* ===================================================================
+       WIKIRACE ENGINE & P2P WEBRTC MULTIPLAYER
+       =================================================================== */
+
+    // Application State
+    const state = {
+      isMultiplayer: false,
+      isHost: false,
+      status: 'IDLE', // 'IDLE', 'LOBBY', 'COUNTDOWN', 'PLAYING', 'WON', 'LOST'
+      startArticle: '',
+      targetArticle: '',
+      currentArticle: '',
+      path: [],
+      startTime: 0,
+      elapsedMs: 0,
+      timerInterval: null,
+      
+      // Multiplayer Opponent State
+      opponent: {
+        connected: false,
+        name: 'Opponent',
+        currentArticle: '',
+        steps: 0,
+        elapsedMs: 0,
+        path: []
+      },
+
+      // PeerJS Network Handle
+      peer: null,
+      conn: null,
+      roomCode: '',
+
+      // Solo Mode State
+      activeMode: 'random',
+      pendingStart: '',
+      pendingTarget: ''
+    };
+
+    // DOM Element Map
+    const elements = {
+      wikiContent: document.getElementById('wiki-content'),
+      wikiLoading: document.getElementById('wiki-loading'),
+      articleTitle: document.getElementById('article-title'),
+      timerDisplay: document.getElementById('timer-display'),
+      stepsDisplay: document.getElementById('steps-display'),
+      startTargetText: document.getElementById('start-target-text'),
+      goalTargetText: document.getElementById('goal-target-text'),
+      pathBadge: document.getElementById('path-badge'),
+      modeBadge: document.getElementById('mode-badge'),
+      
+      // Opponent HUD
+      opponentHud: document.getElementById('opponent-hud'),
+      opponentNameLabel: document.getElementById('opponent-name-label'),
+      opponentCurrentPage: document.getElementById('opponent-current-page'),
+      opponentStepsCount: document.getElementById('opponent-steps-count'),
+      opponentTimeCount: document.getElementById('opponent-time-count'),
+
+      // Buttons
+      openLobbyBtn: document.getElementById('open-lobby-btn'),
+      viewPathBtn: document.getElementById('view-path-btn'),
+      closePathDrawerBtn: document.getElementById('close-path-drawer-btn'),
+      pathDrawerOverlay: document.getElementById('path-drawer-overlay'),
+      pathDrawer: document.getElementById('path-drawer'),
+      pathList: document.getElementById('path-list'),
+      drawerUndoBtn: document.getElementById('drawer-undo-btn'),
+      drawerCopyBtn: document.getElementById('drawer-copy-btn'),
+      undoStepBtn: document.getElementById('undo-step-btn'),
+      newRaceBtn: document.getElementById('new-race-btn'),
+      startIdleBtn: document.getElementById('start-idle-btn'),
+      startP2pIdleBtn: document.getElementById('start-p2p-idle-btn'),
+      previewTargetBtn: document.getElementById('preview-target-btn'),
+
+      // Lobby Modal
+      lobbyModal: document.getElementById('lobby-modal'),
+      closeLobbyBtn: document.getElementById('close-lobby-btn'),
+      lobbyTabHost: document.getElementById('lobby-tab-host'),
+      lobbyTabJoin: document.getElementById('lobby-tab-join'),
+      lobbyHostView: document.getElementById('lobby-host-view'),
+      lobbyJoinView: document.getElementById('lobby-join-view'),
+      hostRoomCode: document.getElementById('host-room-code'),
+      copyRoomLinkBtn: document.getElementById('copy-room-link-btn'),
+      hostPeerStatus: document.getElementById('host-peer-status'),
+      hostStartText: document.getElementById('host-start-text'),
+      hostTargetText: document.getElementById('host-target-text'),
+      hostRerollBtn: document.getElementById('host-reroll-btn'),
+      hostStartMatchBtn: document.getElementById('host-start-match-btn'),
+      joinCodeInput: document.getElementById('join-code-input'),
+      connectPeerBtn: document.getElementById('connect-peer-btn'),
+      joinStatusBox: document.getElementById('join-status-box'),
+
+      // Countdown
+      countdownOverlay: document.getElementById('countdown-overlay'),
+      countdownNumber: document.getElementById('countdown-number'),
+
+      // Solo Setup
+      setupModal: document.getElementById('setup-modal'),
+      closeSetupModalBtn: document.getElementById('close-setup-modal-btn'),
+      cancelSetupBtn: document.getElementById('cancel-setup-btn'),
+      startRaceBtn: document.getElementById('start-race-btn'),
+      tabRandomBtn: document.getElementById('tab-random-btn'),
+      tabCustomBtn: document.getElementById('tab-custom-btn'),
+      tabPresetBtn: document.getElementById('tab-preset-btn'),
+      modeRandom: document.getElementById('mode-random'),
+      modeCustom: document.getElementById('mode-custom'),
+      modePresets: document.getElementById('mode-presets'),
+      rollRandomBtn: document.getElementById('roll-random-btn'),
+      customStartInput: document.getElementById('custom-start-input'),
+      customTargetInput: document.getElementById('custom-target-input'),
+      startSuggestions: document.getElementById('start-suggestions'),
+      targetSuggestions: document.getElementById('target-suggestions'),
+
+      // Victory
+      victoryModal: document.getElementById('victory-modal'),
+      vicIconBox: document.getElementById('vic-icon-box'),
+      vicHeading: document.getElementById('vic-heading'),
+      vicSubheading: document.getElementById('vic-subheading'),
+      vicYourTime: document.getElementById('vic-your-time'),
+      vicYourPath: document.getElementById('vic-your-path'),
+      vicOpponentBox: document.getElementById('vic-opponent-box'),
+      vicOpponentTime: document.getElementById('vic-opponent-time'),
+      vicOpponentPath: document.getElementById('vic-opponent-path'),
+      vicShareBtn: document.getElementById('vic-share-btn'),
+      vicPlayAgainBtn: document.getElementById('vic-play-again-btn'),
+
+      // Target Modal
+      targetPreviewModal: document.getElementById('target-preview-modal'),
+      targetModalTitle: document.getElementById('target-modal-title'),
+      targetModalBody: document.getElementById('target-modal-body'),
+      closeTargetPreviewBtn: document.getElementById('close-target-preview-btn'),
+      targetModalOkBtn: document.getElementById('target-modal-ok-btn'),
+
+      // Theme
+      themeToggle: document.getElementById('theme-toggle'),
+      toastContainer: document.getElementById('toast-container')
+    };
+
+    // Toast Notification System
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      const bgClass = type === 'warning' ? 'bg-amber-600' : type === 'error' ? 'bg-rose-600' : 'bg-slate-800 dark:bg-slate-100 dark:text-slate-900';
+      toast.className = `px-4 py-2.5 rounded-xl text-white text-xs font-semibold shadow-lg transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto flex items-center gap-2 ${bgClass}`;
+      toast.innerHTML = `<span>${message}</span>`;
+
+      elements.toastContainer.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Theme Toggle Initialization
+    function initTheme() {
+      const savedTheme = localStorage.getItem('wikirace_theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    elements.themeToggle.addEventListener('click', () => {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('wikirace_theme', isDark ? 'dark' : 'light');
+    });
+
+
+    /* ===================================================================
+       P2P MULTIPLAYER ENGINE (PeerJS)
+       =================================================================== */
+
+    // Generate unique 5-char room code
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 5; i++) {
+        code += chars.charAt(floorRand(chars.length));
+      }
+      return code;
+    }
+
+    function floorRand(max) {
+      return Math.floor(Math.random() * max);
+    }
+
+    // Host initializes PeerJS room
+    async function initHostRoom() {
+      state.isMultiplayer = true;
+      state.isHost = true;
+      state.roomCode = generateRoomCode();
+      elements.hostRoomCode.textContent = state.roomCode;
+
+      // Generate random race articles for the lobby
+      await rerollLobbyArticles();
+
+      // Peer ID namespaced to avoid global collisions
+      const peerId = `wikirace-p2p-${state.roomCode}`;
+      
+      if (state.peer) state.peer.destroy();
+      state.peer = new Peer(peerId);
+
+      state.peer.on('open', (id) => {
+        elements.hostPeerStatus.innerHTML = `<i data-lucide="loader" class="w-3.5 h-3.5 animate-spin"></i> Waiting for opponent...`;
+        lucide.createIcons();
+      });
+
+      state.peer.on('connection', (connection) => {
+        state.conn = connection;
+        setupConnectionListeners();
+      });
+
+      state.peer.on('error', (err) => {
+        if (err.type === 'unavailable-id') {
+          // Retry with new code if collision occurs
+          initHostRoom();
+        } else {
+          showToast(`P2P Network Error: ${err.type}`, 'error');
+        }
+      });
+    }
+
+    // Joiner connects to Host Room
+    function connectToHostRoom(code) {
+      state.isMultiplayer = true;
+      state.isHost = false;
+      state.roomCode = code.toUpperCase().trim();
+
+      const targetPeerId = `wikirace-p2p-${state.roomCode}`;
+
+      if (state.peer) state.peer.destroy();
+      state.peer = new Peer();
+
+      elements.joinStatusBox.classList.remove('hidden');
+      elements.joinStatusBox.textContent = `Connecting to room ${state.roomCode}...`;
+
+      state.peer.on('open', () => {
+        state.conn = state.peer.connect(targetPeerId);
+        setupConnectionListeners();
+      });
+
+      state.peer.on('error', (err) => {
+        elements.joinStatusBox.textContent = `Connection failed. Check code.`;
+        showToast(`Could not connect to host!`, 'error');
+      });
+    }
+
+    // Attach WebRTC Data Channel Event Listeners
+    function setupConnectionListeners() {
+      state.conn.on('open', () => {
+        state.opponent.connected = true;
+
+        if (state.isHost) {
+          elements.hostPeerStatus.innerHTML = `<span class="text-emerald-500 font-bold flex items-center gap-1"><i data-lucide="check-circle" class="w-3.5 h-3.5"></i> Player Connected!</span>`;
+          elements.hostStartMatchBtn.disabled = false;
+          // Sync current articles to joiner
+          sendP2PMessage({
+            type: 'SYNC_LOBBY',
+            start: state.startArticle,
+            target: state.targetArticle
+          });
+        } else {
+          elements.joinStatusBox.textContent = `Connected! Waiting for Host to start...`;
+          showToast(`Connected to Host!`, 'info');
+        }
+
+        elements.opponentHud.classList.remove('hidden');
+        elements.modeBadge.textContent = 'Multiplayer 1v1';
+        elements.modeBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500 text-white';
+        lucide.createIcons();
+      });
+
+      state.conn.on('data', (data) => {
+        handleP2PMessage(data);
+      });
+
+      state.conn.on('close', () => {
+        state.opponent.connected = false;
+        showToast('Opponent disconnected.', 'warning');
+        elements.opponentCurrentPage.textContent = 'Disconnected';
+      });
+    }
+
+    // Send JSON data over WebRTC
+    function sendP2PMessage(msg) {
+      if (state.conn && state.conn.open) {
+        state.conn.send(msg);
+      }
+    }
+
+    // Handle incoming WebRTC messages
+    function handleP2PMessage(msg) {
+      switch (msg.type) {
+        case 'SYNC_LOBBY':
+          state.startArticle = msg.start;
+          state.targetArticle = msg.target;
+          elements.startTargetText.textContent = msg.start;
+          elements.goalTargetText.textContent = msg.target;
+          break;
+
+        case 'START_COUNTDOWN':
+          elements.lobbyModal.classList.add('hidden');
+          triggerCountdownSequence();
+          break;
+
+        case 'PLAYER_UPDATE':
+          state.opponent.currentArticle = msg.currentArticle;
+          state.opponent.steps = msg.steps;
+          state.opponent.elapsedMs = msg.elapsedMs;
+          state.opponent.path = msg.path;
+          
+          // Update live HUD
+          elements.opponentCurrentPage.textContent = msg.currentArticle;
+          elements.opponentStepsCount.textContent = msg.steps;
+          elements.opponentTimeCount.textContent = formatTime(msg.elapsedMs);
+          break;
+
+        case 'PLAYER_WIN':
+          handleMatchEnd(false, msg); // Opponent won first
+          break;
+      }
+    }
+
+    async function rerollLobbyArticles() {
+      const [s, t] = await getRandomWikiArticles(2);
+      state.startArticle = s;
+      state.targetArticle = t;
+      elements.hostStartText.textContent = s;
+      elements.hostTargetText.textContent = t;
+      elements.startTargetText.textContent = s;
+      elements.goalTargetText.textContent = t;
+
+      if (state.conn) {
+        sendP2PMessage({ type: 'SYNC_LOBBY', start: s, target: t });
+      }
+    }
+
+
+    /* ===================================================================
+       WIKIPEDIA API & HTML CLEANER
+       =================================================================== */
+
+    async function fetchWikiArticle(pageTitle) {
+      const endpoint = `https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(pageTitle)}&prop=text|displaytitle&format=json&origin=*&redirects=1`;
+      const response = await fetch(endpoint);
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error.info || 'Article not found');
+      }
+
+      return {
+        title: data.parse.title,
+        html: data.parse.text['*']
+      };
+    }
+
+    async function getRandomWikiArticles(count = 2) {
+      const endpoint = `https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=${count}&format=json&origin=*`;
+      const response = await fetch(endpoint);
+      const data = await response.json();
+      return data.query.random.map(item => item.title);
+    }
+
+    async function searchWikiArticles(query) {
+      if (!query || query.trim().length < 2) return [];
+      const endpoint = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=5&namespace=0&format=json&origin=*`;
+      const response = await fetch(endpoint);
+      const data = await response.json();
+      return data[1] || [];
+    }
+
+    async function fetchTargetSummary(pageTitle) {
+      try {
+        const endpoint = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(pageTitle)}`;
+        const response = await fetch(endpoint);
+        if (!response.ok) return 'No preview summary available for this article.';
+        const data = await response.json();
+        return data.extract || 'No preview summary available for this article.';
+      } catch (err) {
+        return 'Could not load summary preview.';
+      }
+    }
+
+    // Clean Raw Wikipedia HTML
+    function cleanWikiHtml(rawHtml) {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = rawHtml;
+
+      const selectorsToRemove = [
+        '.mw-editsection',
+        '.reference',
+        '.reflist',
+        '.navbox',
+        '.vertical-navbox',
+        '.sidebar',
+        '.catlinks',
+        '.printfooter',
+        '.mw-jump-link',
+        '.hatnote',
+        '.ambox',
+        '.noprint',
+        'style',
+        'script'
+      ];
+
+      selectorsToRemove.forEach(sel => {
+        tempDiv.querySelectorAll(sel).forEach(el => el.remove());
+      });
+
+      tempDiv.querySelectorAll('img').forEach(img => {
+        let src = img.getAttribute('src');
+        if (src && src.startsWith('//')) {
+          img.setAttribute('src', 'https:' + src);
+        }
+        img.onerror = () => { img.style.display = 'none'; };
+      });
+
+      return tempDiv.innerHTML;
+    }
+
+
+    /* ===================================================================
+       SCOPED EVENT DELEGATION FOR WIKIPEDIA LINKS
+       =================================================================== */
+
+    // STRICTLY SCOPED to `#wiki-content` to prevent ambient screen clicks triggering actions
+    elements.wikiContent.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (!link) return;
+
+      const href = link.getAttribute('href');
+      if (!href) return;
+
+      if (href.startsWith('/wiki/') || href.startsWith('./wiki/')) {
+        e.preventDefault();
+
+        const rawTitle = href.replace(/^(\/wiki\/|\.\/wiki\/)/, '');
+        const decodedTitle = decodeURIComponent(rawTitle);
+
+        // Filter non-article Wikipedia namespaces
+        if (
+          decodedTitle.includes(':') &&
+          /^(Special|File|Help|Talk|Category|Wikipedia|Portal|Draft|Template|Template_talk|MediaWiki):/i.test(decodedTitle)
+        ) {
+          showToast('Non-article pages (Files, Special, Help) are disabled.', 'warning');
+          return;
+        }
+
+        const mainTitle = decodedTitle.split('#')[0].replace(/_/g, ' ');
+        if (!mainTitle) return;
+
+        handleStepNavigation(mainTitle);
+      } else if (!href.startsWith('#')) {
+        e.preventDefault();
+        showToast('External links are disabled during WikiRace!', 'info');
+      }
+    });
+
+    async function handleStepNavigation(nextArticleTitle) {
+      if (state.status !== 'PLAYING') {
+        showToast('Start a race to begin navigating!', 'info');
+        return;
+      }
+
+      await loadArticle(nextArticleTitle, true);
+    }
+
+    async function loadArticle(title, isStep = false) {
+      elements.wikiLoading.classList.remove('hidden');
+
+      try {
+        const articleData = await fetchWikiArticle(title);
+        const cleanedHtml = cleanWikiHtml(articleData.html);
+
+        elements.wikiContent.innerHTML = cleanedHtml;
+        elements.articleTitle.textContent = articleData.title;
+        state.currentArticle = articleData.title;
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        if (isStep) {
+          state.path.push(articleData.title);
+          updateHUD();
+
+          // Broadcast step update to multiplayer peer over WebRTC
+          if (state.isMultiplayer) {
+            sendP2PMessage({
+              type: 'PLAYER_UPDATE',
+              currentArticle: articleData.title,
+              steps: state.path.length - 1,
+              elapsedMs: state.elapsedMs,
+              path: state.path
+            });
+          }
+
+          checkWinCondition();
+        }
+
+      } catch (err) {
+        showToast(`Could not load page: ${err.message}`, 'error');
+      } finally {
+        elements.wikiLoading.classList.add('hidden');
+      }
+    }
+
+
+    /* ===================================================================
+       COUNTDOWN & TIMER CONTROLS
+       =================================================================== */
+
+    function triggerCountdownSequence() {
+      state.status = 'COUNTDOWN';
+      elements.countdownOverlay.classList.remove('hidden');
+      let count = 3;
+      elements.countdownNumber.textContent = count;
+
+      const countdownInt = setInterval(() => {
+        count--;
+        if (count > 0) {
+          elements.countdownNumber.textContent = count;
+        } else if (count === 0) {
+          elements.countdownNumber.textContent = 'GO!';
+        } else {
+          clearInterval(countdownInt);
+          elements.countdownOverlay.classList.add('hidden');
+          startActualRace();
+        }
+      }, 1000);
+    }
+
+    function startActualRace() {
+      state.status = 'PLAYING';
+      state.path = [state.startArticle];
+      state.currentArticle = state.startArticle;
+
+      updateHUD();
+      startTimer();
+      loadArticle(state.startArticle, false);
+    }
+
+    function startTimer() {
+      stopTimer();
+      state.startTime = Date.now();
+      state.timerInterval = setInterval(() => {
+        state.elapsedMs = Date.now() - state.startTime;
+        elements.timerDisplay.textContent = formatTime(state.elapsedMs);
+      }, 100);
+    }
+
+    function stopTimer() {
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+    }
+
+    function formatTime(ms) {
+      const totalSeconds = Math.floor(ms / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      const tenths = Math.floor((ms % 1000) / 100);
+
+      const mm = String(minutes).padStart(2, '0');
+      const ss = String(seconds).padStart(2, '0');
+      return `${mm}:${ss}.${tenths}`;
+    }
+
+    function checkWinCondition() {
+      const cur = state.currentArticle.toLowerCase().trim();
+      const tgt = state.targetArticle.toLowerCase().trim();
+
+      if (cur === tgt) {
+        if (state.isMultiplayer) {
+          sendP2PMessage({
+            type: 'PLAYER_WIN',
+            winnerPath: state.path,
+            winnerTime: state.elapsedMs
+          });
+        }
+        handleMatchEnd(true, { winnerPath: state.path, winnerTime: state.elapsedMs });
+      }
+    }
+
+    // Match End Handler (Win / Loss)
+    function handleMatchEnd(isLocalWinner, winData) {
+      state.status = isLocalWinner ? 'WON' : 'LOST';
+      stopTimer();
+
+      if (isLocalWinner) {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        elements.vicHeading.textContent = 'Victory! Goal Reached!';
+        elements.vicSubheading.textContent = 'You reached the target article first!';
+        elements.vicIconBox.className = 'w-16 h-16 bg-amber-100 dark:bg-amber-900/40 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-amber-500/20';
+        elements.vicIconBox.innerHTML = `<i data-lucide="crown" class="w-8 h-8"></i>`;
+      } else {
+        elements.vicHeading.textContent = 'Match Over!';
+        elements.vicSubheading.textContent = 'Your opponent reached the target article first.';
+        elements.vicIconBox.className = 'w-16 h-16 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-500 rounded-full flex items-center justify-center mx-auto mb-3';
+        elements.vicIconBox.innerHTML = `<i data-lucide="award" class="w-8 h-8"></i>`;
+      }
+
+      // Populate Paths Comparison
+      elements.vicYourTime.textContent = formatTime(state.elapsedMs);
+      elements.vicYourPath.innerHTML = renderPathListHtml(state.path);
+
+      if (state.isMultiplayer) {
+        elements.vicOpponentBox.classList.remove('hidden');
+        const oppPath = isLocalWinner ? state.opponent.path : winData.winnerPath;
+        const oppTime = isLocalWinner ? state.opponent.elapsedMs : winData.winnerTime;
+        elements.vicOpponentTime.textContent = formatTime(oppTime);
+        elements.vicOpponentPath.innerHTML = oppPath.length > 0 ? renderPathListHtml(oppPath) : 'No steps taken';
+      } else {
+        elements.vicOpponentBox.classList.add('hidden');
+      }
+
+      elements.victoryModal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function renderPathListHtml(pathArr) {
+      return pathArr.map((item, idx) => `
+        <div class="flex items-center gap-2">
+          <span class="w-4 h-4 rounded-full ${idx === pathArr.length - 1 ? 'bg-amber-500' : 'bg-blue-500'} text-white flex items-center justify-center text-[9px] font-bold shrink-0">${idx + 1}</span>
+          <span class="truncate ${idx === pathArr.length - 1 ? 'font-bold text-amber-600 dark:text-amber-400' : ''}">${escapeHtml(item)}</span>
+        </div>
+      `).join('');
+    }
+
+    function updateHUD() {
+      const steps = Math.max(0, state.path.length - 1);
+      elements.stepsDisplay.textContent = steps;
+      elements.pathBadge.textContent = state.path.length;
+
+      elements.startTargetText.textContent = state.startArticle || '---';
+      elements.goalTargetText.textContent = state.targetArticle || '---';
+
+      if (state.path.length > 1) {
+        elements.undoStepBtn.classList.remove('hidden');
+        elements.undoStepBtn.classList.add('flex');
+      } else {
+        elements.undoStepBtn.classList.add('hidden');
+        elements.undoStepBtn.classList.remove('flex');
+      }
+    }
+
+
+    /* ===================================================================
+       PATH HISTORY DRAWER CONTROLS
+       =================================================================== */
+
+    function openPathDrawer() {
+      elements.pathDrawerOverlay.classList.remove('opacity-0', 'pointer-events-none');
+      elements.pathDrawer.classList.remove('translate-x-full');
+      updatePathDrawerUI();
+    }
+
+    function closePathDrawer() {
+      elements.pathDrawerOverlay.classList.add('opacity-0', 'pointer-events-none');
+      elements.pathDrawer.classList.add('translate-x-full');
+    }
+
+    elements.viewPathBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openPathDrawer();
+    });
+
+    elements.closePathDrawerBtn.addEventListener('click', closePathDrawer);
+    elements.pathDrawerOverlay.addEventListener('click', closePathDrawer);
+
+    function updatePathDrawerUI() {
+      if (state.path.length === 0) {
+        elements.pathList.innerHTML = `
+          <div class="text-center py-12 text-slate-400 text-xs">
+            <i data-lucide="map-pin-off" class="w-8 h-8 mx-auto mb-2 opacity-50"></i>
+            No steps taken yet!
+          </div>
+        `;
+        lucide.createIcons();
+        return;
+      }
+
+      elements.pathList.innerHTML = state.path.map((title, idx) => {
+        const isStart = idx === 0;
+        const isCurrent = idx === state.path.length - 1;
+
+        return `
+          <div class="flex items-start gap-3 p-3 rounded-xl ${isCurrent ? 'bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800' : 'bg-slate-100 dark:bg-slate-900/50'}">
+            <div class="w-6 h-6 rounded-full ${isStart ? 'bg-emerald-500' : isCurrent ? 'bg-blue-600' : 'bg-slate-400'} text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+              ${idx + 1}
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="text-xs font-semibold text-slate-900 dark:text-white truncate">${escapeHtml(title)}</div>
+              <div class="text-[10px] text-slate-500">${isStart ? 'Start Page' : isCurrent ? 'Current Position' : `Step ${idx}`}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    function undoStep() {
+      if (state.path.length <= 1 || state.status !== 'PLAYING') {
+        showToast('Cannot undo initial step!', 'warning');
+        return;
+      }
+
+      state.path.pop();
+      const previousTitle = state.path[state.path.length - 1];
+      updateHUD();
+      updatePathDrawerUI();
+      loadArticle(previousTitle, false);
+      showToast('Undid last step', 'info');
+    }
+
+    elements.undoStepBtn.addEventListener('click', undoStep);
+    elements.drawerUndoBtn.addEventListener('click', undoStep);
+
+    elements.drawerCopyBtn.addEventListener('click', copyPathToClipboard);
+    elements.vicShareBtn.addEventListener('click', copyPathToClipboard);
+
+    function copyPathToClipboard() {
+      if (state.path.length === 0) return;
+
+      const stepsCount = Math.max(0, state.path.length - 1);
+      const timeStr = formatTime(state.elapsedMs);
+      const text = `🏆 WikiRace Speedrun!\nFrom '${state.startArticle}' to '${state.targetArticle}'\n⏱️ Time: ${timeStr} | 🐾 Steps: ${stepsCount}\n📍 Path: ${state.path.join(' ➔ ')}`;
+
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = text;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+
+      showToast('Results copied to clipboard!', 'info');
+    }
+
+
+    /* ===================================================================
+       MULTIPLAYER LOBBY EVENT LISTENERS
+       =================================================================== */
+
+    elements.openLobbyBtn.addEventListener('click', () => {
+      elements.lobbyModal.classList.remove('hidden');
+      initHostRoom();
+    });
+
+    elements.startP2pIdleBtn.addEventListener('click', () => {
+      elements.lobbyModal.classList.remove('hidden');
+      initHostRoom();
+    });
+
+    elements.closeLobbyBtn.addEventListener('click', () => {
+      elements.lobbyModal.classList.add('hidden');
+    });
+
+    elements.lobbyTabHost.addEventListener('click', () => {
+      elements.lobbyTabHost.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm transition-all';
+      elements.lobbyTabJoin.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 transition-all';
+      elements.lobbyHostView.classList.remove('hidden');
+      elements.lobbyJoinView.classList.add('hidden');
+    });
+
+    elements.lobbyTabJoin.addEventListener('click', () => {
+      elements.lobbyTabJoin.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm transition-all';
+      elements.lobbyTabHost.className = 'flex-1 py-2 text-xs font-bold rounded-lg text-slate-600 dark:text-slate-400 transition-all';
+      elements.lobbyJoinView.classList.remove('hidden');
+      elements.lobbyHostView.classList.add('hidden');
+    });
+
+    elements.copyRoomLinkBtn.addEventListener('click', () => {
+      const shareUrl = `${window.location.origin}${window.location.pathname}?room=${state.roomCode}`;
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = shareUrl;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+
+      showToast('Shareable room link copied!', 'info');
+    });
+
+    elements.hostRerollBtn.addEventListener('click', rerollLobbyArticles);
+
+    elements.hostStartMatchBtn.addEventListener('click', () => {
+      if (!state.opponent.connected) {
+        showToast('Wait for an opponent to join!', 'warning');
+        return;
+      }
+      sendP2PMessage({ type: 'START_COUNTDOWN' });
+      elements.lobbyModal.classList.add('hidden');
+      triggerCountdownSequence();
+    });
+
+    elements.connectPeerBtn.addEventListener('click', () => {
+      const code = elements.joinCodeInput.value.trim();
+      if (!code) {
+        showToast('Please enter a room code!', 'warning');
+        return;
+      }
+      connectToHostRoom(code);
+    });
+
+
+    /* ===================================================================
+       SOLO MODE CONTROLS
+       =================================================================== */
+
+    elements.newRaceBtn.addEventListener('click', () => {
+      state.isMultiplayer = false;
+      elements.setupModal.classList.remove('hidden');
+      prepareRandomMode();
+    });
+
+    elements.startIdleBtn.addEventListener('click', () => {
+      state.isMultiplayer = false;
+      elements.setupModal.classList.remove('hidden');
+      prepareRandomMode();
+    });
+
+    elements.closeSetupModalBtn.addEventListener('click', () => elements.setupModal.classList.add('hidden'));
+    elements.cancelSetupBtn.addEventListener('click', () => elements.setupModal.classList.add('hidden'));
+
+    elements.tabRandomBtn.addEventListener('click', () => switchSetupMode('random'));
+    elements.tabCustomBtn.addEventListener('click', () => switchSetupMode('custom'));
+    elements.tabPresetBtn.addEventListener('click', () => switchSetupMode('preset'));
+
+    function switchSetupMode(mode) {
+      state.activeMode = mode;
+      [elements.tabRandomBtn, elements.tabCustomBtn, elements.tabPresetBtn].forEach(btn => {
+        btn.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg text-slate-600 dark:text-slate-400 transition-all';
+      });
+
+      elements.modeRandom.classList.add('hidden');
+      elements.modeCustom.classList.add('hidden');
+      elements.modePresets.classList.add('hidden');
+
+      if (mode === 'random') {
+        elements.tabRandomBtn.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition-all';
+        elements.modeRandom.classList.remove('hidden');
+      } else if (mode === 'custom') {
+        elements.tabCustomBtn.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition-all';
+        elements.modeCustom.classList.remove('hidden');
+      } else if (mode === 'preset') {
+        elements.tabPresetBtn.className = 'flex-1 py-2 text-xs sm:text-sm font-semibold rounded-lg bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm transition-all';
+        elements.modePresets.classList.remove('hidden');
+      }
+    }
+
+    async function prepareRandomMode() {
+      try {
+        const [start, target] = await getRandomWikiArticles(2);
+        state.pendingStart = start;
+        state.pendingTarget = target;
+      } catch (e) {
+        state.pendingStart = 'Banana';
+        state.pendingTarget = 'Moon';
+      }
+    }
+
+    elements.rollRandomBtn.addEventListener('click', prepareRandomMode);
+
+    setupAutocomplete(elements.customStartInput, elements.startSuggestions);
+    setupAutocomplete(elements.customTargetInput, elements.targetSuggestions);
+
+    function setupAutocomplete(inputEl, suggestionsEl) {
+      let timeout = null;
+      inputEl.addEventListener('input', () => {
+        clearTimeout(timeout);
+        const query = inputEl.value.trim();
+
+        if (query.length < 2) {
+          suggestionsEl.classList.add('hidden');
+          return;
+        }
+
+        timeout = setTimeout(async () => {
+          const results = await searchWikiArticles(query);
+          if (results.length === 0) {
+            suggestionsEl.classList.add('hidden');
+            return;
+          }
+
+          suggestionsEl.innerHTML = results.map(item => `
+            <div class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-xs font-medium text-slate-800 dark:text-slate-200 truncate">
+              ${escapeHtml(item)}
+            </div>
+          `).join('');
+
+          suggestionsEl.classList.remove('hidden');
+
+          suggestionsEl.querySelectorAll('div').forEach(itemEl => {
+            itemEl.addEventListener('click', () => {
+              inputEl.value = itemEl.textContent.trim();
+              suggestionsEl.classList.add('hidden');
+            });
+          });
+        }, 250);
+      });
+    }
+
+    document.querySelectorAll('.preset-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const start = card.getAttribute('data-start');
+        const target = card.getAttribute('data-target');
+        startSoloRace(start, target);
+        elements.setupModal.classList.add('hidden');
+      });
+    });
+
+    elements.startRaceBtn.addEventListener('click', () => {
+      if (state.activeMode === 'random') {
+        startSoloRace(state.pendingStart, state.pendingTarget);
+      } else if (state.activeMode === 'custom') {
+        const start = elements.customStartInput.value.trim();
+        const target = elements.customTargetInput.value.trim();
+        if (!start || !target) {
+          showToast('Please enter both Start and Target articles!', 'warning');
+          return;
+        }
+        startSoloRace(start, target);
+      }
+      elements.setupModal.classList.add('hidden');
+    });
+
+    function startSoloRace(startTitle, targetTitle) {
+      state.isMultiplayer = false;
+      state.startArticle = startTitle;
+      state.targetArticle = targetTitle;
+      elements.modeBadge.textContent = 'Solo';
+      elements.modeBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300';
+      elements.opponentHud.classList.add('hidden');
+
+      triggerCountdownSequence();
+    }
+
+    // Target Preview Modal
+    elements.previewTargetBtn.addEventListener('click', async () => {
+      if (!state.targetArticle) return;
+      elements.targetModalTitle.textContent = `Goal: ${state.targetArticle}`;
+      elements.targetModalBody.textContent = 'Fetching summary...';
+      elements.targetPreviewModal.classList.remove('hidden');
+
+      const summary = await fetchTargetSummary(state.targetArticle);
+      elements.targetModalBody.textContent = summary;
+    });
+
+    elements.closeTargetPreviewBtn.addEventListener('click', () => elements.targetPreviewModal.classList.add('hidden'));
+    elements.targetModalOkBtn.addEventListener('click', () => elements.targetPreviewModal.classList.add('hidden'));
+
+    elements.vicPlayAgainBtn.addEventListener('click', () => {
+      elements.victoryModal.classList.add('hidden');
+      if (state.isMultiplayer) {
+        elements.lobbyModal.classList.remove('hidden');
+      } else {
+        elements.setupModal.classList.remove('hidden');
+      }
+    });
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Auto-Join Check from Shareable URL query string: ?room=RACE-XXXX
+    window.onload = function () {
+      initTheme();
+      lucide.createIcons();
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+
+      if (roomParam) {
+        elements.lobbyModal.classList.remove('hidden');
+        elements.lobbyTabJoin.click();
+        elements.joinCodeInput.value = roomParam.toUpperCase();
+        connectToHostRoom(roomParam);
+      }
+    };
+  </script>
+</body>
+</html>
