@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WikiRace - The Wikipedia Speedrun Game</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Canvas Confetti for Victory Effect -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Styles for Wikipedia Rendered Content -->
+  <style>
+    /* Styling Wikipedia Content for clean modern readability */
+    .wiki-content {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.75;
+      color: currentColor;
+    }
+    
+    .wiki-content p {
+      margin-bottom: 1.25rem;
+      font-size: 1.05rem;
+    }
+
+    .wiki-content h1, .wiki-content h2, .wiki-content h3, .wiki-content h4 {
+      font-weight: 700;
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+      line-height: 1.3;
+      letter-spacing: -0.02em;
+    }
+
+    .wiki-content h2 {
+      font-size: 1.5rem;
+      border-bottom: 2px solid rgba(156, 163, 175, 0.2);
+      padding-bottom: 0.5rem;
+    }
+
+    .wiki-content h3 {
+      font-size: 1.25rem;
+    }
+
+    .wiki-content a {
+      color: #2563eb;
+      text-decoration: underline;
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 3px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+
+    .dark .wiki-content a {
+      color: #60a5fa;
+    }
+
+    .wiki-content a:hover {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: #1d4ed8;
+    }
+
+    .dark .wiki-content a:hover {
+      background-color: rgba(96, 165, 250, 0.2);
+      color: #93c5fd;
+    }
+
+    /* Target word highlight in article if present */
+    .wiki-content .target-highlight {
+      background-color: #fef08a;
+      color: #854d0e;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+
+    /* Images and thumbs in article */
+    .wiki-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 0.75rem;
+      margin: 1rem 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .wiki-content .thumb {
+      margin: 1.25rem 0;
+      background: rgba(156, 163, 175, 0.08);
+      border-radius: 0.75rem;
+      padding: 0.75rem;
+      max-width: 320px;
+    }
+
+    .wiki-content .thumbcaption {
+      font-size: 0.85rem;
+      color: #6b7280;
+      margin-top: 0.5rem;
+    }
+
+    .dark .wiki-content .thumbcaption {
+      color: #9ca3af;
+    }
+
+    .wiki-content ul, .wiki-content ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .wiki-content ul { list-style-type: disc; }
+    .wiki-content ol { list-style-type: decimal; }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.4);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.6);
+    }
+  </style>
+</head>
+
+<body class="h-full bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200">
+
+  <!-- TOP APP NAVBAR -->
+  <header class="sticky top-0 z-30 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 transition-colors">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      
+      <!-- Logo & Title -->
+      <div class="flex items-center space-x-3 cursor-pointer" id="logo-button">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
+          <i data-lucide="zap" class="w-6 h-6"></i>
+        </div>
+        <div>
+          <h1 class="font-bold text-lg leading-tight tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
+            WikiRace
+          </h1>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Wikipedia Speedrun</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <button id="btn-new-race" class="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium text-sm transition flex items-center space-x-1.5 shadow-sm shadow-blue-600/20">
+          <i data-lucide="play" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">New Race</span>
+        </button>
+
+        <button id="btn-leaderboard" class="p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm transition flex items-center space-x-1.5">
+          <i data-lucide="trophy" class="w-4 h-4 text-amber-500"></i>
+          <span class="hidden sm:inline">Stats</span>
+        </button>
+
+        <button id="btn-path-drawer" class="relative p-2 sm:px-3 sm:py-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-sm transition flex items-center space-x-1.5">
+          <i data-lucide="footprints" class="w-4 h-4 text-indigo-500"></i>
+          <span class="hidden sm:inline">Path</span>
+          <span id="badge-click-count" class="ml-1 px-1.5 py-0.5 text-xs rounded-full bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 font-bold">0</span>
+        </button>
+
+        <button id="btn-theme-toggle" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Toggle Theme">
+          <i data-lucide="sun" class="w-5 h-5 hidden dark:block"></i>
+          <i data-lucide="moon" class="w-5 h-5 block dark:hidden"></i>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- GAME STATUS HUD BAR (ACTIVE ONLY WHEN PLAYING) -->
+  <div id="game-hud" class="bg-slate-100 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 py-3 px-4 shadow-inner transition-colors">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
+      
+      <!-- Start -> Target Cards -->
+      <div class="flex items-center space-x-2 sm:space-x-3 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+        
+        <!-- Start Article Card -->
+        <div class="flex items-center space-x-2 bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 shrink-0">
+          <span class="text-xs font-semibold uppercase text-slate-400">Start:</span>
+          <span id="hud-start-title" class="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate max-w-[120px] sm:max-w-[180px]">-</span>
+        </div>
+
+        <i data-lucide="arrow-right" class="w-4 h-4 text-slate-400 shrink-0"></i>
+
+        <!-- Target Article Card -->
+        <div class="flex items-center space-x-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 px-3 py-1.5 rounded-xl shrink-0">
+          <span class="text-xs font-semibold uppercase text-amber-600 dark:text-amber-400 flex items-center gap-1">
+            <i data-lucide="target" class="w-3.5 h-3.5"></i> Target:
+          </span>
+          <span id="hud-target-title" class="text-sm font-bold text-amber-700 dark:text-amber-300 truncate max-w-[140px] sm:max-w-[220px]">-</span>
+          <button id="btn-preview-target" class="text-xs text-amber-600 hover:underline ml-1" title="View Target Info">
+            <i data-lucide="info" class="w-3.5 h-3.5 inline"></i>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Live Counters & Give Up -->
+      <div class="flex items-center space-x-4 w-full md:w-auto justify-between md:justify-end">
+        
+        <div class="flex items-center space-x-4 bg-white dark:bg-slate-800 px-4 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700">
+          <!-- Clicks -->
+          <div class="flex items-center space-x-1.5">
+            <i data-lucide="mouse-pointer" class="w-4 h-4 text-blue-500"></i>
+            <span class="text-xs text-slate-400 uppercase font-semibold">Clicks:</span>
+            <span id="hud-clicks" class="text-base font-extrabold text-slate-800 dark:text-slate-100">0</span>
+          </div>
+
+          <div class="w-px h-4 bg-slate-200 dark:bg-slate-700"></div>
+
+          <!-- Timer -->
+          <div class="flex items-center space-x-1.5">
+            <i data-lucide="clock" class="w-4 h-4 text-indigo-500"></i>
+            <span id="hud-timer" class="text-base font-extrabold font-mono text-slate-800 dark:text-slate-100">00:00</span>
+          </div>
+        </div>
+
+        <button id="btn-give-up" class="px-3 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 font-semibold text-xs transition flex items-center space-x-1">
+          <i data-lucide="flag" class="w-3.5 h-3.5"></i>
+          <span>Give Up</span>
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAIN CONTAINER AREA -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col relative">
+
+    <!-- WELCOME / START GAME PANEL (Shown when idle or setting up) -->
+    <div id="welcome-panel" class="my-auto py-8 max-w-2xl mx-auto w-full text-center space-y-8">
+      
+      <div class="space-y-3">
+        <div class="inline-flex p-3 rounded-2xl bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-blue-400 mb-2">
+          <i data-lucide="compass" class="w-10 h-10"></i>
+        </div>
+        <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Navigate Wikipedia in standard speedrun mode</h2>
+        <p class="text-slate-600 dark:text-slate-400 text-base max-w-lg mx-auto">
+          Start on one Wikipedia article and reach the target article using only internal links in as few clicks and as little time as possible!
+        </p>
+      </div>
+
+      <!-- Race Options Card -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl space-y-6 text-left">
+        
+        <!-- Mode Tabs -->
+        <div class="flex border-b border-slate-200 dark:border-slate-800 pb-3">
+          <button id="tab-random" class="font-bold text-sm text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 pb-2 px-3 flex items-center space-x-2">
+            <i data-lucide="shuffle" class="w-4 h-4"></i>
+            <span>Random Race</span>
+          </button>
+          <button id="tab-custom" class="font-semibold text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-2 px-3 flex items-center space-x-2 transition">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+            <span>Custom Race</span>
+          </button>
+        </div>
+
+        <!-- RANDOM MODE FORM -->
+        <div id="form-random-mode" class="space-y-5">
+          <div>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Difficulty Preset</label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button type="button" data-diff="easy" class="btn-diff p-3 rounded-xl border-2 border-blue-500 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 font-semibold text-xs text-center transition">
+                🟢 Easy
+                <span class="block font-normal text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Popular topics</span>
+              </button>
+              <button type="button" data-diff="medium" class="btn-diff p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 font-semibold text-xs text-center transition">
+                🟡 Medium
+                <span class="block font-normal text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Standard Wiki</span>
+              </button>
+              <button type="button" data-diff="hard" class="btn-diff p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 font-semibold text-xs text-center transition">
+                🔴 Hard
+                <span class="block font-normal text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Deep concepts</span>
+              </button>
+              <button type="button" data-diff="obscure" class="btn-diff p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 font-semibold text-xs text-center transition">
+                🟣 Obscure
+                <span class="block font-normal text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Niche pages</span>
+              </button>
+            </div>
+          </div>
+
+          <button id="btn-start-random" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 active:scale-[0.99] text-white font-bold text-base transition shadow-lg shadow-blue-500/25 flex items-center justify-center space-x-2">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+            <span>Generate Random Race</span>
+          </button>
+        </div>
+
+        <!-- CUSTOM MODE FORM -->
+        <div id="form-custom-mode" class="space-y-4 hidden">
+          <!-- Start Input -->
+          <div class="relative">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Starting Article</label>
+            <div class="relative">
+              <input type="text" id="input-custom-start" placeholder="e.g. Kevin Bacon, Internet, Pizza..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <div id="suggest-start" class="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl hidden max-h-48 overflow-y-auto"></div>
+            </div>
+          </div>
+
+          <!-- Target Input -->
+          <div class="relative">
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Target Article</label>
+            <div class="relative">
+              <input type="text" id="input-custom-target" placeholder="e.g. Moon, Albert Einstein, Japan..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <div id="suggest-target" class="absolute z-20 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl hidden max-h-48 overflow-y-auto"></div>
+            </div>
+          </div>
+
+          <button id="btn-start-custom" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-base transition shadow-md shadow-blue-500/20 flex items-center justify-center space-x-2">
+            <i data-lucide="play" class="w-5 h-5"></i>
+            <span>Start Custom Race</span>
+          </button>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- LOADING / SPINNER STATE -->
+    <div id="loading-state" class="hidden my-auto text-center py-20 space-y-4">
+      <div class="inline-block animate-spin text-blue-600 dark:text-blue-400">
+        <i data-lucide="loader-2" class="w-12 h-12"></i>
+      </div>
+      <p id="loading-text" class="text-lg font-medium text-slate-600 dark:text-slate-300">Fetching Wikipedia Article...</p>
+    </div>
+
+    <!-- ARTICLE VIEWPORT CONTAINER -->
+    <div id="article-container" class="hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-10 shadow-md">
+      
+      <!-- Article Header Bar inside Container -->
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-6">
+        <div>
+          <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Current Article</span>
+          <h1 id="article-heading" class="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100"></h1>
+        </div>
+        <button id="btn-scroll-top" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition" title="Scroll to Top">
+          <i data-lucide="arrow-up" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Rendered Article HTML -->
+      <article id="article-body" class="wiki-content max-w-none">
+        <!-- Intercepted Wikipedia content loads here -->
+      </article>
+
+    </div>
+
+  </main>
+
+  <!-- SLIDE-OUT PATH HISTORY DRAWER -->
+  <div id="path-drawer" class="fixed inset-0 z-50 pointer-events-none transition-opacity duration-300 opacity-0">
+    <!-- Backdrop -->
+    <div id="drawer-backdrop" class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm pointer-events-auto"></div>
+
+    <!-- Panel -->
+    <div class="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-6 shadow-2xl flex flex-col pointer-events-auto transform transition-transform duration-300 translate-x-full" id="drawer-panel">
+      <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4 mb-4">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="footprints" class="w-5 h-5 text-indigo-500"></i>
+          <h3 class="font-bold text-lg">Your Race Path</h3>
+        </div>
+        <button id="btn-close-drawer" class="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Path Tree List -->
+      <div id="drawer-path-list" class="flex-1 overflow-y-auto space-y-3 pr-2">
+        <!-- Rendered path items -->
+      </div>
+    </div>
+  </div>
+
+  <!-- TARGET PREVIEW MODAL -->
+  <div id="modal-target-preview" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-amber-500 uppercase tracking-wider flex items-center gap-1">
+          <i data-lucide="target" class="w-4 h-4"></i> Target Article
+        </span>
+        <button class="modal-close p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div id="target-preview-content" class="space-y-3">
+        <h3 id="target-preview-title" class="text-xl font-extrabold"></h3>
+        <div id="target-preview-image" class="w-full h-36 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden hidden">
+          <img src="" class="w-full h-full object-cover">
+        </div>
+        <p id="target-preview-extract" class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed"></p>
+      </div>
+
+      <button class="modal-close w-full py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 font-semibold text-sm transition">
+        Close Preview
+      </button>
+    </div>
+  </div>
+
+  <!-- VICTORY MODAL -->
+  <div id="modal-victory" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl text-center space-y-6">
+      
+      <div class="inline-flex p-4 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-500 ring-8 ring-amber-50 dark:ring-amber-950/30">
+        <i data-lucide="trophy" class="w-12 h-12"></i>
+      </div>
+
+      <div class="space-y-2">
+        <h2 class="text-3xl font-extrabold text-slate-900 dark:text-slate-100">Target Reached!</h2>
+        <p class="text-sm text-slate-500 dark:text-slate-400">You successfully raced across Wikipedia!</p>
+      </div>
+
+      <!-- Stats Grid -->
+      <div class="grid grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+        <div>
+          <span class="block text-xs uppercase text-slate-400 font-semibold">Total Clicks</span>
+          <span id="win-stat-clicks" class="text-2xl font-black text-blue-600 dark:text-blue-400">0</span>
+        </div>
+        <div>
+          <span class="block text-xs uppercase text-slate-400 font-semibold">Time Elapsed</span>
+          <span id="win-stat-time" class="text-2xl font-black text-indigo-600 dark:text-indigo-400">00:00</span>
+        </div>
+      </div>
+
+      <!-- Copyable Summary Box -->
+      <div class="space-y-2">
+        <button id="btn-copy-results" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold text-sm transition flex items-center justify-center space-x-2 shadow-md shadow-emerald-600/20">
+          <i data-lucide="copy" class="w-4 h-4"></i>
+          <span>Copy Results to Clipboard</span>
+        </button>
+      </div>
+
+      <div class="flex space-x-3 pt-2">
+        <button id="btn-victory-again" class="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition">
+          Play Again
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STATS / LEADERBOARD MODAL -->
+  <div id="modal-stats" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-indigo-500 uppercase tracking-wider flex items-center gap-1">
+          <i data-lucide="history" class="w-4 h-4"></i> Local Race History
+        </span>
+        <button class="modal-close p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div id="stats-history-list" class="max-h-64 overflow-y-auto space-y-2.5 pr-1">
+        <!-- Rendered past races -->
+      </div>
+
+      <div class="flex justify-between items-center pt-2">
+        <button id="btn-clear-stats" class="text-xs text-rose-500 hover:underline">Clear History</button>
+        <button class="modal-close px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 font-semibold text-xs transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- JAVASCRIPT GAME LOGIC -->
+  <script>
+    // Game State Object
+    const state = {
+      status: 'idle', // 'idle' | 'playing' | 'won' | 'gave_up'
+      startTitle: '',
+      targetTitle: '',
+      currentTitle: '',
+      path: [],
+      clicks: 0,
+      startTime: null,
+      timerInterval: null,
+      elapsedSeconds: 0,
+      difficulty: 'easy',
+      mode: 'random', // 'random' | 'custom'
+      targetSummary: null,
+      history: JSON.parse(localStorage.getItem('wikirace_history') || '[]')
+    };
+
+    // Curated High Quality Easy Topics for standard fun
+    const EASY_PRESETS = [
+      "United States", "Moon", "Albert Einstein", "Pizza", "Internet", 
+      "World War II", "Japan", "Chess", "Dog", "Basketball", "Dinosaur", "Python (programming language)"
+    ];
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize Theme
+      initTheme();
+
+      // UI Listeners
+      document.getElementById('btn-theme-toggle').addEventListener('click', toggleTheme);
+      document.getElementById('logo-button').addEventListener('click', resetToHome);
+      document.getElementById('btn-new-race').addEventListener('click', resetToHome);
+      document.getElementById('btn-give-up').addEventListener('click', giveUpGame);
+      document.getElementById('btn-leaderboard').addEventListener('click', openStatsModal);
+      document.getElementById('btn-clear-stats').addEventListener('click', clearHistory);
+
+      // Path Drawer Listeners
+      document.getElementById('btn-path-drawer').addEventListener('click', togglePathDrawer);
+      document.getElementById('btn-close-drawer').addEventListener('click', togglePathDrawer);
+      document.getElementById('drawer-backdrop').addEventListener('click', togglePathDrawer);
+
+      // Mode Selection Tabs
+      document.getElementById('tab-random').addEventListener('click', () => switchMode('random'));
+      document.getElementById('tab-custom').addEventListener('click', () => switchMode('custom'));
+
+      // Difficulty Selector
+      document.querySelectorAll('.btn-diff').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          document.querySelectorAll('.btn-diff').forEach(b => {
+            b.classList.remove('border-2', 'border-blue-500', 'bg-blue-50', 'dark:bg-blue-950/40', 'text-blue-700', 'dark:text-blue-300');
+            b.classList.add('border', 'border-slate-200', 'dark:border-slate-700');
+          });
+          const target = e.currentTarget;
+          target.classList.add('border-2', 'border-blue-500', 'bg-blue-50', 'dark:bg-blue-950/40', 'text-blue-700', 'dark:text-blue-300');
+          state.difficulty = target.dataset.diff;
+        });
+      });
+
+      // Start Race Buttons
+      document.getElementById('btn-start-random').addEventListener('click', startRandomRace);
+      document.getElementById('btn-start-custom').addEventListener('click', startCustomRace);
+
+      // Modal Close Handlers
+      document.querySelectorAll('.modal-close').forEach(btn => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[id^="modal-"]').forEach(m => m.classList.add('hidden'));
+        });
+      });
+
+      // Target Preview Button
+      document.getElementById('btn-preview-target').addEventListener('click', showTargetPreviewModal);
+
+      // Victory Buttons
+      document.getElementById('btn-victory-again').addEventListener('click', () => {
+        document.getElementById('modal-victory').classList.add('hidden');
+        resetToHome();
+      });
+      document.getElementById('btn-copy-results').addEventListener('click', copyResultsToClipboard);
+
+      // Scroll to top
+      document.getElementById('btn-scroll-top').addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+
+      // Setup Autocomplete
+      setupAutocomplete('input-custom-start', 'suggest-start');
+      setupAutocomplete('input-custom-target', 'suggest-target');
+    });
+
+    function initTheme() {
+      const savedTheme = localStorage.getItem('wikirace_theme') || 'light';
+      if (savedTheme === 'dark' || (!('wikirace_theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('wikirace_theme', isDark ? 'dark' : 'light');
+    }
+
+    function switchMode(mode) {
+      state.mode = mode;
+      const randomTab = document.getElementById('tab-random');
+      const customTab = document.getElementById('tab-custom');
+      const randomForm = document.getElementById('form-random-mode');
+      const customForm = document.getElementById('form-custom-mode');
+
+      if (mode === 'random') {
+        randomTab.className = "font-bold text-sm text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 pb-2 px-3 flex items-center space-x-2";
+        customTab.className = "font-semibold text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-2 px-3 flex items-center space-x-2 transition";
+        randomForm.classList.remove('hidden');
+        customForm.classList.add('hidden');
+      } else {
+        customTab.className = "font-bold text-sm text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 pb-2 px-3 flex items-center space-x-2";
+        randomTab.className = "font-semibold text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 pb-2 px-3 flex items-center space-x-2 transition";
+        customForm.classList.remove('hidden');
+        randomForm.classList.add('hidden');
+      }
+    }
+
+    function resetToHome() {
+      stopTimer();
+      state.status = 'idle';
+      document.getElementById('game-hud').style.display = 'none';
+      document.getElementById('article-container').classList.add('hidden');
+      document.getElementById('welcome-panel').classList.remove('hidden');
+      document.getElementById('loading-state').classList.add('hidden');
+    }
+
+    async function fetchRandomArticles(count = 2) {
+      if (state.difficulty === 'easy') {
+        // Pick 2 random from curated
+        const shuffled = [...EASY_PRESETS].sort(() => 0.5 - Math.random());
+        return [shuffled[0], shuffled[1]];
+      }
+
+      // Fetch via Wikipedia Random API
+      const url = `https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=${count * 3}&format=json&origin=*`;
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      const pages = data.query.random.map(p => p.title).filter(t => !t.includes(':'));
+      return [pages[0], pages[1] || "Earth"];
+    }
+
+    function setupAutocomplete(inputId, suggestId) {
+      const input = document.getElementById(inputId);
+      const suggest = document.getElementById(suggestId);
+      let timeout = null;
+
+      input.addEventListener('input', () => {
+        clearTimeout(timeout);
+        const query = input.value.trim();
+        if (query.length < 2) {
+          suggest.classList.add('hidden');
+          return;
+        }
+
+        timeout = setTimeout(async () => {
+          try {
+            const url = `https://en.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(query)}&limit=6&namespace=0&format=json&origin=*`;
+            const res = await fetch(url);
+            const data = await res.json();
+            const results = data[1] || [];
+
+            if (results.length === 0) {
+              suggest.classList.add('hidden');
+              return;
+            }
+
+            suggest.innerHTML = results.map(item => `
+              <div class="px-4 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-sm font-medium transition" onclick="selectSuggest('${inputId}', '${suggestId}', '${item.replace(/'/g, "\\'")}')">
+                ${item}
+              </div>
+            `).join('');
+            suggest.classList.remove('hidden');
+          } catch (e) {
+            console.error(e);
+          }
+        }, 250);
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!input.contains(e.target) && !suggest.contains(e.target)) {
+          suggest.classList.add('hidden');
+        }
+      });
+    }
+
+    window.selectSuggest = function(inputId, suggestId, value) {
+      document.getElementById(inputId).value = value;
+      document.getElementById(suggestId).classList.add('hidden');
+    }
+
+    async function startRandomRace() {
+      showLoading("Generating Random Wiki Race...");
+      try {
+        const [start, target] = await fetchRandomArticles(2);
+        initGame(start, target);
+      } catch (err) {
+        showToast("Error generating race. Please try again.", "error");
+        resetToHome();
+      }
+    }
+
+    async function startCustomRace() {
+      const start = document.getElementById('input-custom-start').value.trim();
+      const target = document.getElementById('input-custom-target').value.trim();
+
+      if (!start || !target) {
+        showToast("Please enter both Start and Target articles!", "warning");
+        return;
+      }
+
+      if (start.toLowerCase() === target.toLowerCase()) {
+        showToast("Start and Target articles must be different!", "warning");
+        return;
+      }
+
+      showLoading("Setting up Custom Race...");
+      initGame(start, target);
+    }
+
+    async function initGame(startTitle, targetTitle) {
+      state.startTitle = startTitle;
+      state.targetTitle = targetTitle;
+      state.currentTitle = startTitle;
+      state.path = [startTitle];
+      state.clicks = 0;
+      state.elapsedSeconds = 0;
+      state.status = 'playing';
+
+      // Update HUD Labels
+      document.getElementById('hud-start-title').textContent = startTitle;
+      document.getElementById('hud-target-title').textContent = targetTitle;
+      document.getElementById('hud-clicks').textContent = '0';
+      document.getElementById('badge-click-count').textContent = '0';
+      document.getElementById('hud-timer').textContent = '00:00';
+
+      document.getElementById('welcome-panel').classList.add('hidden');
+      document.getElementById('game-hud').style.display = 'block';
+
+      // Fetch Target Summary in background
+      fetchTargetSummary(targetTitle);
+
+      // Start Timer
+      startTimer();
+
+      // Load First Article
+      await loadArticle(startTitle);
+    }
+
+    function startTimer() {
+      stopTimer();
+      state.startTime = Date.now();
+      state.timerInterval = setInterval(() => {
+        state.elapsedSeconds++;
+        const mins = String(Math.floor(state.elapsedSeconds / 60)).padStart(2, '0');
+        const secs = String(state.elapsedSeconds % 60).padStart(2, '0');
+        document.getElementById('hud-timer').textContent = `${mins}:${secs}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+    }
+
+    async function loadArticle(title) {
+      showLoading(`Loading "${title}"...`);
+
+      try {
+        const url = `https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text|displaytitle&redirects=true&format=json&origin=*`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (data.error) {
+          showToast(`Article "${title}" not found on Wikipedia.`, "error");
+          hideLoading();
+          return;
+        }
+
+        const canonicalTitle = data.parse.displaytitle.replace(/<[^>]*>/g, '');
+        const rawHtml = data.parse.text['*'];
+
+        // Update current state with canonical title
+        state.currentTitle = canonicalTitle;
+
+        // Render and Intercept
+        renderArticleContent(canonicalTitle, rawHtml);
+
+        // Check Win Condition
+        if (checkWinCondition(canonicalTitle, state.targetTitle)) {
+          handleVictory();
+        }
+
+      } catch (err) {
+        console.error(err);
+        showToast("Network error fetching Wikipedia content.", "error");
+      } finally {
+        hideLoading();
+      }
+    }
+
+    function renderArticleContent(title, rawHtml) {
+      const heading = document.getElementById('article-heading');
+      const body = document.getElementById('article-body');
+
+      heading.textContent = title;
+
+      // Parse HTML string to DOM
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(rawHtml, 'text/html');
+
+      // Strip unneeded elements to keep interface ultra clean
+      const selectorsToRemove = [
+        '.mw-editsection', '.reflist', '.reference', '#toc', '.toc',
+        '.navbox', '.vertical-navbox', '.metadata', '.ambox', '.catlinks',
+        '.printfooter', '.mw-empty-elt', 'style', 'script', 'noscript',
+        '.sfn', '.sidebar', '.hatnote'
+      ];
+      selectorsToRemove.forEach(sel => {
+        doc.querySelectorAll(sel).forEach(el => el.remove());
+      });
+
+      // Process links
+      const links = doc.querySelectorAll('a');
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+
+        if (href && href.startsWith('/wiki/') && !href.includes(':')) {
+          // Internal Wiki Article link
+          const wikiPage = decodeURIComponent(href.replace('/wiki/', '')).replace(/_/g, ' ');
+          
+          link.removeAttribute('href');
+          link.setAttribute('data-wiki-target', wikiPage);
+          link.classList.add('wikirace-link');
+
+          link.addEventListener('click', (e) => {
+            e.preventDefault();
+            onWikiLinkClicked(wikiPage);
+          });
+        } else {
+          // External or meta links
+          link.style.pointerEvents = 'none';
+          link.style.opacity = '0.7';
+          link.style.textDecoration = 'none';
+        }
+      });
+
+      // Fix relative image URLs
+      doc.querySelectorAll('img').forEach(img => {
+        let src = img.getAttribute('src');
+        if (src && src.startsWith('//')) {
+          img.setAttribute('src', 'https:' + src);
+        }
+      });
+
+      // Inject clean HTML back
+      body.innerHTML = '';
+      body.appendChild(doc.body);
+
+      // Scroll viewport top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      document.getElementById('article-container').classList.remove('hidden');
+    }
+
+    async function onWikiLinkClicked(targetTitle) {
+      if (state.status !== 'playing') return;
+
+      state.clicks++;
+      state.path.push(targetTitle);
+
+      document.getElementById('hud-clicks').textContent = state.clicks;
+      document.getElementById('badge-click-count').textContent = state.clicks;
+
+      updatePathDrawer();
+      await loadArticle(targetTitle);
+    }
+
+    async function fetchTargetSummary(title) {
+      try {
+        const url = `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          state.targetSummary = await res.json();
+        }
+      } catch (e) {
+        state.targetSummary = null;
+      }
+    }
+
+    function checkWinCondition(current, target) {
+      const cleanCurrent = current.toLowerCase().trim();
+      const cleanTarget = target.toLowerCase().trim();
+      return cleanCurrent === cleanTarget;
+    }
+
+    function handleVictory() {
+      stopTimer();
+      state.status = 'won';
+
+      // Confetti effect!
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+
+      // Display Victory Modal Stats
+      document.getElementById('win-stat-clicks').textContent = state.clicks;
+      document.getElementById('win-stat-time').textContent = document.getElementById('hud-timer').textContent;
+
+      // Save to High Score History
+      saveGameToHistory(true);
+
+      // Show Modal
+      document.getElementById('modal-victory').classList.remove('hidden');
+    }
+
+    function giveUpGame() {
+      if (state.status !== 'playing') return;
+      stopTimer();
+      state.status = 'gave_up';
+      saveGameToHistory(false);
+      showToast("Game Over! You gave up this race.", "info");
+      resetToHome();
+    }
+
+    function togglePathDrawer() {
+      const drawer = document.getElementById('path-drawer');
+      const panel = document.getElementById('drawer-panel');
+
+      if (drawer.classList.contains('opacity-0')) {
+        drawer.classList.remove('pointer-events-none', 'opacity-0');
+        panel.classList.remove('translate-x-full');
+        updatePathDrawer();
+      } else {
+        drawer.classList.add('opacity-0', 'pointer-events-none');
+        panel.classList.add('translate-x-full');
+      }
+    }
+
+    function updatePathDrawer() {
+      const list = document.getElementById('drawer-path-list');
+      if (state.path.length === 0) {
+        list.innerHTML = `<p class="text-xs text-slate-400">No steps taken yet.</p>`;
+        return;
+      }
+
+      list.innerHTML = state.path.map((item, idx) => `
+        <div class="flex items-start space-x-3 text-sm p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60">
+          <span class="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-300 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
+            ${idx}
+          </span>
+          <div class="flex-1">
+            <span class="font-semibold text-slate-800 dark:text-slate-200">${item}</span>
+            ${idx === 0 ? '<span class="text-[10px] uppercase font-bold text-emerald-500 ml-2">(Start)</span>' : ''}
+            ${idx === state.path.length - 1 && state.status === 'won' ? '<span class="text-[10px] uppercase font-bold text-amber-500 ml-2">🏆 (Target)</span>' : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function showTargetPreviewModal() {
+      const modal = document.getElementById('modal-target-preview');
+      document.getElementById('target-preview-title').textContent = state.targetTitle;
+      
+      const imgDiv = document.getElementById('target-preview-image');
+      const extractP = document.getElementById('target-preview-extract');
+
+      if (state.targetSummary) {
+        extractP.textContent = state.targetSummary.extract || "No description available.";
+        if (state.targetSummary.thumbnail) {
+          imgDiv.querySelector('img').src = state.targetSummary.thumbnail.source;
+          imgDiv.classList.remove('hidden');
+        } else {
+          imgDiv.classList.add('hidden');
+        }
+      } else {
+        extractP.textContent = "Fetching target article information...";
+        imgDiv.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function saveGameToHistory(won) {
+      const record = {
+        date: new Date().toLocaleDateString(),
+        start: state.startTitle,
+        target: state.targetTitle,
+        clicks: state.clicks,
+        time: document.getElementById('hud-timer').textContent,
+        won: won
+      };
+
+      state.history.unshift(record);
+      if (state.history.length > 20) state.history.pop();
+      localStorage.setItem('wikirace_history', JSON.stringify(state.history));
+    }
+
+    function openStatsModal() {
+      const modal = document.getElementById('modal-stats');
+      const list = document.getElementById('stats-history-list');
+
+      if (state.history.length === 0) {
+        list.innerHTML = `<p class="text-sm text-slate-400 py-4 text-center">No race history recorded yet!</p>`;
+      } else {
+        list.innerHTML = state.history.map(item => `
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs">
+            <div>
+              <div class="font-bold text-slate-700 dark:text-slate-200">${item.start} ➔ ${item.target}</div>
+              <div class="text-slate-400 mt-0.5">${item.date} • ${item.clicks} clicks • ${item.time}</div>
+            </div>
+            <span class="px-2 py-1 rounded-full font-bold ${item.won ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'}">
+              ${item.won ? 'Won 🏆' : 'Gave Up'}
+            </span>
+          </div>
+        `).join('');
+      }
+
+      modal.classList.remove('hidden');
+    }
+
+    function clearHistory() {
+      state.history = [];
+      localStorage.removeItem('wikirace_history');
+      openStatsModal();
+      showToast("History cleared!", "info");
+    }
+
+    function copyResultsToClipboard() {
+      const timeStr = document.getElementById('hud-timer').textContent;
+      const text = `WikiRace 🏆\nStart: ${state.startTitle}\nTarget: ${state.targetTitle}\nClicks: ${state.clicks} | Time: ${timeStr}\nPath: ${state.path.join(' ➔ ')}`;
+
+      // Fallback for iframe / permission constraints
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast("Results copied to clipboard!", "success");
+      } catch (err) {
+        showToast("Failed to copy results.", "error");
+      }
+      document.body.removeChild(textarea);
+    }
+
+    function showLoading(msg) {
+      document.getElementById('loading-text').textContent = msg;
+      document.getElementById('loading-state').classList.remove('hidden');
+      document.getElementById('article-container').classList.add('hidden');
+    }
+
+    function hideLoading() {
+      document.getElementById('loading-state').classList.add('hidden');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+
+      const colors = {
+        success: 'bg-emerald-600 text-white',
+        error: 'bg-rose-600 text-white',
+        warning: 'bg-amber-500 text-white',
+        info: 'bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900'
+      };
+
+      toast.className = `px-4 py-2.5 rounded-xl shadow-lg text-sm font-semibold transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto ${colors[type] || colors.info}`;
+      toast.textContent = message;
+
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      }, 10);
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+  </script>
+</body>
+</html>
