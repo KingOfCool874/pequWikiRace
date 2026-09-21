@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WikiRace - WebRTC Multiplayer & Reachability Engine</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-short': 'bounce 0.6s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Canvas Confetti CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Scoped Wikipedia Article Styling */
+        #wiki-content {
+            color: inherit;
+            line-height: 1.7;
+            font-size: 1.05rem;
+        }
+
+        #wiki-content p {
+            margin-bottom: 1.25rem;
+        }
+
+        #wiki-content h1, #wiki-content h2, #wiki-content h3, #wiki-content h4 {
+            font-weight: 700;
+            margin-top: 1.75rem;
+            margin-bottom: 0.75rem;
+            line-height: 1.3;
+            border-bottom: 1px solid rgba(156, 163, 175, 0.2);
+            padding-bottom: 0.3rem;
+        }
+
+        #wiki-content h1 { font-size: 2rem; }
+        #wiki-content h2 { font-size: 1.5rem; }
+        #wiki-content h3 { font-size: 1.25rem; }
+
+        #wiki-content a[data-wiki-title] {
+            color: #3b82f6;
+            text-decoration: underline;
+            text-decoration-thickness: 1px;
+            text-underline-offset: 2px;
+            font-weight: 500;
+            transition: all 0.15s ease;
+            cursor: pointer;
+            padding: 1px 3px;
+            border-radius: 4px;
+        }
+
+        .dark #wiki-content a[data-wiki-title] {
+            color: #60a5fa;
+        }
+
+        #wiki-content a[data-wiki-title]:hover {
+            background-color: rgba(59, 130, 246, 0.15);
+            color: #2563eb;
+        }
+
+        .dark #wiki-content a[data-wiki-title]:hover {
+            background-color: rgba(96, 165, 250, 0.2);
+            color: #93c5fd;
+        }
+
+        #wiki-content ul, #wiki-content ol {
+            margin-left: 1.5rem;
+            margin-bottom: 1.25rem;
+            list-style-type: disc;
+        }
+
+        #wiki-content table {
+            width: 100%;
+            margin-bottom: 1.5rem;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+            overflow-x: auto;
+            display: block;
+        }
+
+        #wiki-content th, #wiki-content td {
+            border: 1px solid rgba(156, 163, 175, 0.3);
+            padding: 0.5rem 0.75rem;
+        }
+
+        #wiki-content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        #wiki-content blockquote {
+            border-left: 4px solid #3b82f6;
+            padding-left: 1rem;
+            font-style: italic;
+            margin: 1rem 0;
+            opacity: 0.9;
+        }
+
+        /* Glassmorphism effects */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.6);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- Application Header Bar -->
+    <header class="sticky top-0 z-30 glass-panel border-b border-slate-200 dark:border-slate-800 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            
+            <!-- Brand Logo & Title -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-indigo-500/20">
+                    <i class="fa-solid fa-globe"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">WikiRace</h1>
+                    <span id="mode-badge" class="inline-block text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">Single Player</span>
+                </div>
+            </div>
+
+            <!-- Race Progress Bar / Stats Bar -->
+            <div id="game-stats-bar" class="hidden md:flex items-center gap-6 bg-slate-200/60 dark:bg-slate-900/60 px-4 py-1.5 rounded-full border border-slate-300/50 dark:border-slate-800">
+                <!-- Clicks Count -->
+                <div class="flex items-center gap-2" title="Total Clicks">
+                    <i class="fa-solid fa-hand-pointer text-indigo-500"></i>
+                    <span id="stat-clicks" class="font-mono font-bold text-base">0</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">clicks</span>
+                </div>
+                
+                <div class="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
+
+                <!-- Timer -->
+                <div class="flex items-center gap-2" title="Time Elapsed">
+                    <i class="fa-regular fa-clock text-pink-500"></i>
+                    <span id="stat-timer" class="font-mono font-bold text-base">00:00</span>
+                </div>
+
+                <div class="h-4 w-px bg-slate-300 dark:bg-slate-700"></div>
+
+                <!-- Hot / Cold Dynamic Distance Meter -->
+                <div id="hot-cold-meter" class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all duration-300 bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    <span id="hot-cold-icon"><i class="fa-solid fa-snowflake text-cyan-400"></i></span>
+                    <span id="hot-cold-text">SCANNING...</span>
+                </div>
+            </div>
+
+            <!-- Top Action Controls -->
+            <div class="flex items-center gap-2">
+                <!-- Undo Button -->
+                <button id="btn-undo" onclick="undoLastStep()" disabled class="p-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition" title="Undo Step (1 penalty click)">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+
+                <!-- History Drawer Button -->
+                <button onclick="toggleHistoryDrawer()" class="p-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition relative" title="Path History">
+                    <i class="fa-solid fa-route"></i>
+                    <span id="history-badge" class="absolute -top-1 -right-1 bg-indigo-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">0</span>
+                </button>
+
+                <!-- Theme Toggle -->
+                <button onclick="toggleTheme()" class="p-2.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition" title="Toggle Light/Dark Theme">
+                    <i id="theme-icon" class="fa-solid fa-moon"></i>
+                </button>
+
+                <!-- Lobby / Config Menu -->
+                <button onclick="openLobbyModal()" class="ml-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-sm rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i class="fa-solid fa-flag-checkered"></i>
+                    <span class="hidden sm:inline">New Race</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col lg:flex-row gap-6 relative">
+
+        <!-- Wiki Article Viewer Column -->
+        <section class="flex-1 min-w-0 flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl overflow-hidden">
+            
+            <!-- Target & Current Banner Header -->
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 border-b border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                
+                <!-- Start Article Info -->
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="p-2 rounded-lg bg-indigo-500/20 border border-indigo-500/30 text-indigo-400">
+                        <i class="fa-solid fa-location-dot text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Current Article</div>
+                        <h2 id="current-article-title" class="text-base sm:text-lg font-bold truncate text-white">Loading...</h2>
+                    </div>
+                </div>
+
+                <!-- Hop Indicator Arrow -->
+                <div class="hidden sm:flex items-center justify-center text-slate-500">
+                    <i class="fa-solid fa-arrow-right-long text-xl"></i>
+                </div>
+
+                <!-- Target Article Info -->
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="p-2 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
+                        <i class="fa-solid fa-bullseye text-lg"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="text-[11px] font-semibold uppercase tracking-wider text-emerald-400 font-bold">Target Destination</div>
+                        <h2 id="target-article-title" class="text-base sm:text-lg font-bold truncate text-emerald-300">Loading...</h2>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mobile Mobile Stats Bar -->
+            <div class="flex md:hidden items-center justify-between p-3 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-xs font-semibold">
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-hand-pointer text-indigo-500"></i>
+                    <span id="mobile-stat-clicks">0</span> Clicks
+                </div>
+                <div class="flex items-center gap-1.5">
+                    <i class="fa-regular fa-clock text-pink-500"></i>
+                    <span id="mobile-stat-timer">00:00</span>
+                </div>
+                <div id="mobile-hot-cold-meter" class="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] bg-slate-200 dark:bg-slate-700">
+                    <span id="mobile-hot-cold-icon">❄️</span>
+                    <span id="mobile-hot-cold-text">COLD</span>
+                </div>
+            </div>
+
+            <!-- Article Content Container -->
+            <div class="flex-1 p-6 sm:p-8 overflow-y-auto max-h-[calc(100vh-250px)]" id="wiki-scroll-container">
+                <div id="wiki-loader" class="flex flex-col items-center justify-center py-20 text-center">
+                    <div class="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p class="text-slate-500 dark:text-slate-400 font-medium">Fetching Wikipedia article & calculating reachability...</p>
+                </div>
+                
+                <!-- Main Scoped Article HTML Renderer -->
+                <article id="wiki-content" class="hidden">
+                    <!-- Wikipedia content dynamically loaded here -->
+                </article>
+            </div>
+        </section>
+
+        <!-- Multiplayer Live Opponent HUD Panel (Visible in Multiplayer Mode) -->
+        <aside id="multiplayer-hud" class="hidden w-full lg:w-80 flex-shrink-0 flex flex-col gap-4">
+            
+            <!-- Opponent Status Card -->
+            <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-lg relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-24 h-24 bg-purple-500/10 rounded-bl-full pointer-events-none"></div>
+                
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
+                        <h3 class="font-bold text-sm tracking-wide uppercase text-slate-500 dark:text-slate-400">Live Opponent</h3>
+                    </div>
+                    <span id="opponent-peer-status" class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-bold border border-emerald-500/20">Connected</span>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <div class="text-xs text-slate-400 font-medium mb-1">Current Page</div>
+                        <div id="opponent-current-page" class="font-bold text-slate-800 dark:text-slate-200 truncate bg-slate-100 dark:bg-slate-800/60 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700/50">
+                            Waiting for player...
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-100 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                            <div class="text-xs text-slate-400 font-medium">Opponent Clicks</div>
+                            <div id="opponent-clicks" class="text-xl font-mono font-black text-indigo-500 mt-0.5">0</div>
+                        </div>
+
+                        <div class="bg-slate-100 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                            <div class="text-xs text-slate-400 font-medium">Distance Radar</div>
+                            <div id="opponent-hotcold" class="text-xs font-bold mt-1.5 text-slate-600 dark:text-slate-300 flex items-center gap-1">
+                                <span>❄️ COLD</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Opponent Path Tracker Snippet -->
+                    <div>
+                        <div class="text-xs text-slate-400 font-medium mb-1">Opponent Path</div>
+                        <div id="opponent-path-list" class="text-xs text-slate-500 dark:text-slate-400 space-y-1 max-h-32 overflow-y-auto">
+                            <div class="italic text-slate-400">No steps taken yet</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Room Share Quick Box -->
+            <div class="bg-gradient-to-br from-indigo-900 to-purple-950 text-white rounded-2xl p-4 shadow-lg border border-indigo-700/50">
+                <div class="text-xs font-bold uppercase tracking-wider text-indigo-300 mb-1">Invite Code</div>
+                <div class="flex items-center gap-2">
+                    <input id="quick-room-input" readonly type="text" class="bg-slate-950/60 text-xs font-mono px-3 py-2 rounded-lg border border-indigo-500/40 w-full text-indigo-200 select-all" value="...">
+                    <button onclick="copyInviteLink()" class="p-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition" title="Copy Invite Link">
+                        <i class="fa-solid fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+    </main>
+
+    <!-- Path History Sliding Drawer -->
+    <div id="history-drawer" class="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl transform translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div class="flex items-center gap-2 font-bold text-lg">
+                <i class="fa-solid fa-route text-indigo-500"></i>
+                <span>Your Path History</span>
+            </div>
+            <button onclick="toggleHistoryDrawer()" class="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <div id="history-list" class="flex-1 p-4 overflow-y-auto space-y-3">
+            <!-- Dynamic path steps generated here -->
+        </div>
+
+        <div class="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+            <button onclick="undoLastStep()" id="btn-drawer-undo" disabled class="w-full py-2.5 px-4 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-semibold rounded-xl transition flex items-center justify-center gap-2 disabled:opacity-40">
+                <i class="fa-solid fa-rotate-left"></i>
+                <span>Undo Last Click (+1 Penalty)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Race Setup / Lobby Modal -->
+    <div id="lobby-modal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl max-h-[90vh] overflow-y-auto">
+            
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-pink-500 text-white text-2xl mb-3 shadow-lg shadow-indigo-500/30">
+                    <i class="fa-solid fa-trophy"></i>
+                </div>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white">WikiRace Arena</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Navigate Wikipedia articles using only embedded hyperlinks!</p>
+            </div>
+
+            <!-- Mode Switch Tabs -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl mb-6">
+                <button id="tab-single" onclick="setGameMode('single')" class="py-2.5 rounded-lg text-sm font-bold transition bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400">
+                    <i class="fa-solid fa-user mr-1.5"></i> Single Player
+                </button>
+                <button id="tab-multi" onclick="setGameMode('multi')" class="py-2.5 rounded-lg text-sm font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                    <i class="fa-solid fa-users mr-1.5"></i> WebRTC Multiplayer
+                </button>
+            </div>
+
+            <!-- Multiplayer Room Settings (Visible in Multi Mode) -->
+            <div id="multiplayer-config-box" class="hidden mb-6 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700/60 space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Multiplayer Lobby</span>
+                    <span id="peer-connection-badge" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 font-semibold border border-amber-500/20">Initializing Peer...</span>
+                </div>
+
+                <div class="flex gap-2">
+                    <input id="room-code-input" type="text" placeholder="Enter Room ID to Join..." class="flex-1 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <button id="btn-join-room" onclick="joinPeerRoom()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 dark:bg-slate-700 dark:hover:bg-slate-600 text-white font-bold text-sm rounded-xl transition">
+                        Join
+                    </button>
+                </div>
+
+                <div class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                    <i class="fa-solid fa-info-circle text-indigo-400"></i>
+                    <span>Or share your room URL parameter to let friends auto-join on load!</span>
+                </div>
+            </div>
+
+            <!-- Pairing Generator & Presets -->
+            <div class="space-y-4">
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Select Challenge Pair (Guaranteed 2–5 Hops)</label>
+                
+                <!-- Preset Picker -->
+                <select id="preset-select" onchange="handlePresetSelect()" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="" disabled selected>-- Choose a Verified Preset Challenge --</option>
+                    <!-- Presets populated by JS -->
+                </select>
+
+                <div class="flex items-center justify-between gap-3 my-2">
+                    <div class="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
+                    <span class="text-xs font-bold text-slate-400 uppercase">OR GENERATE</span>
+                    <div class="h-px bg-slate-200 dark:bg-slate-800 flex-1"></div>
+                </div>
+
+                <!-- Custom / Random Dynamic Generator Button -->
+                <button onclick="generateRandomReachabilityPair()" id="btn-random-gen" class="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700/80 text-slate-800 dark:text-slate-200 font-bold text-sm rounded-xl transition border border-slate-300 dark:border-slate-700 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-purple-500"></i>
+                    <span>Generate Random Verified Pair (MediaWiki Link Trace)</span>
+                </button>
+
+                <!-- Start & Target Preview Card -->
+                <div class="p-4 bg-indigo-50/50 dark:bg-indigo-950/30 rounded-2xl border border-indigo-200/50 dark:border-indigo-800/40 grid grid-cols-2 gap-4">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-indigo-500">Start Article</span>
+                        <div id="lobby-start-text" class="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">Cheetos</div>
+                    </div>
+                    <div>
+                        <span class="text-[10px] font-bold uppercase text-emerald-500">Target Article</span>
+                        <div id="lobby-target-text" class="font-bold text-sm text-slate-800 dark:text-slate-100 truncate">Quantum mechanics</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Start Game Button -->
+            <div class="mt-8">
+                <button id="btn-start-race" onclick="startRaceSession()" class="w-full py-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white font-black text-lg rounded-2xl shadow-xl shadow-indigo-500/25 transition transform active:scale-[0.98] flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-play"></i>
+                    <span>Start Race Now</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Synchronized 3-2-1 Countdown Overlay -->
+    <div id="countdown-modal" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-lg flex flex-col items-center justify-center text-white">
+        <div id="countdown-number" class="text-9xl font-black animate-bounce-short text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+            3
+        </div>
+        <p class="text-xl font-bold tracking-widest uppercase mt-6 text-slate-400">Get Ready to WikiRace!</p>
+    </div>
+
+    <!-- Victory / Game Over Modal -->
+    <div id="victory-modal" class="hidden fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl text-center">
+            
+            <div id="victory-icon-box" class="w-20 h-20 rounded-3xl bg-emerald-500/20 text-emerald-500 flex items-center justify-center text-4xl mx-auto mb-4 border border-emerald-500/30">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+
+            <h2 id="victory-title" class="text-3xl font-black text-slate-900 dark:text-white">Target Reached!</h2>
+            <p id="victory-subtitle" class="text-slate-500 dark:text-slate-400 text-sm mt-1">You conquered Wikipedia in record time.</p>
+
+            <!-- Final Stats Grid -->
+            <div class="grid grid-cols-3 gap-3 my-6">
+                <div class="bg-slate-100 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                    <span class="text-xs text-slate-400 font-semibold uppercase">Total Clicks</span>
+                    <div id="final-stat-clicks" class="text-2xl font-black font-mono text-indigo-500 mt-1">0</div>
+                </div>
+                <div class="bg-slate-100 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                    <span class="text-xs text-slate-400 font-semibold uppercase">Time Spent</span>
+                    <div id="final-stat-time" class="text-2xl font-black font-mono text-pink-500 mt-1">00:00</div>
+                </div>
+                <div class="bg-slate-100 dark:bg-slate-800/60 p-3 rounded-2xl border border-slate-200 dark:border-slate-700/50">
+                    <span class="text-xs text-slate-400 font-semibold uppercase">Hops Taken</span>
+                    <div id="final-stat-hops" class="text-2xl font-black font-mono text-emerald-500 mt-1">0</div>
+                </div>
+            </div>
+
+            <!-- Path Comparison Section -->
+            <div class="text-left mb-6">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Your Path Journey</h4>
+                <div id="final-path-container" class="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium space-y-1.5 max-h-36 overflow-y-auto">
+                    <!-- Path list -->
+                </div>
+            </div>
+
+            <!-- Modal Action Buttons -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button onclick="copyVictoryStats()" class="flex-1 py-3 px-4 bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-sm rounded-xl transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span>Copy Shareable Stats</span>
+                </button>
+                <button onclick="openLobbyModal()" class="flex-1 py-3 px-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl transition shadow-lg shadow-indigo-500/25 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>Play Another Race</span>
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Custom Toast Message Container -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <script>
+        // =========================================================================
+        // WikiRace Core Application State
+        // =========================================================================
+        
+        // Curated Verified Presets (Guaranteed 2-5 Hops, non-trivial, start NOT 1 click away)
+        const VERIFIED_PRESETS = [
+            { start: "Cheetos", target: "Quantum mechanics", desc: "Snack food to Theoretical Physics (~3-4 hops)" },
+            { start: "Nintendo", target: "Renaissance", desc: "Gaming Giant to 14th Century Europe (~3-4 hops)" },
+            { start: "Banana", target: "Theory of relativity", desc: "Tropical Fruit to Einstein (~3 hops)" },
+            { start: "Pizza", target: "Black hole", desc: "Italian Dish to Deep Space (~3-4 hops)" },
+            { start: "LEGO", target: "Photosynthesis", desc: "Plastic Bricks to Plant Biology (~3-4 hops)" },
+            { start: "Super Mario", target: "Roman Empire", desc: "Mushroom Kingdom to Ancient Rome (~3-4 hops)" },
+            { start: "Barbie", target: "Nuclear weapon", desc: "Iconic Toy to Atomic Physics (~3-4 hops)" },
+            { start: "Minecraft", target: "Sun", desc: "Block Game to Solar System (~3 hops)" },
+            { start: "Eiffel Tower", target: "DNA", desc: "Paris Landmark to Molecular Biology (~3-4 hops)" },
+            { start: "French fries", target: "Moon", desc: "Fast Food to Earth's Satellite (~3-4 hops)" }
+        ];
+
+        let state = {
+            gameMode: 'single', // 'single' or 'multi'
+            isHost: true,
+            startArticle: 'Cheetos',
+            targetArticle: 'Quantum mechanics',
+            currentArticle: '',
+            pathHistory: [], // Array of string titles
+            clicksCount: 0,
+            startTime: null,
+            elapsedTimeSec: 0,
+            timerInterval: null,
+            gameStatus: 'lobby', // 'lobby' | 'countdown' | 'playing' | 'won' | 'lost'
+            hotColdStatus: 'COLD', // 'FREEZING' | 'COLD' | 'WARM' | 'VERY HOT'
+            
+            // WebRTC PeerJS State
+            peer: null,
+            peerId: '',
+            conn: null,
+            opponentState: {
+                currentArticle: 'Not started',
+                clicks: 0,
+                path: [],
+                hotCold: 'COLD',
+                isFinished: false,
+                time: 0
+            }
+        };
+
+        // Initialization on DOM Ready
+        window.addEventListener('DOMContentLoaded', () => {
+            initPresetsUI();
+            checkTheme();
+            setupLinkInterception();
+            parseUrlParameters();
+        });
+
+        function checkTheme() {
+            if (localStorage.theme === 'light') {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+            } else {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon').className = 'fa-solid fa-moon';
+            }
+        }
+
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+                document.getElementById('theme-icon').className = 'fa-solid fa-sun';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+                document.getElementById('theme-icon').className = 'fa-solid fa-moon';
+            }
+        }
+
+        function initPresetsUI() {
+            const select = document.getElementById('preset-select');
+            select.innerHTML = `<option value="" disabled selected>-- Choose a Verified Preset Challenge --</option>`;
+            VERIFIED_PRESETS.forEach((preset, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = `${preset.start} ➔ ${preset.target} (${preset.desc})`;
+                select.appendChild(opt);
+            });
+        }
+
+        function handlePresetSelect() {
+            const select = document.getElementById('preset-select');
+            const idx = select.value;
+            if (idx !== "") {
+                const preset = VERIFIED_PRESETS[idx];
+                state.startArticle = preset.start;
+                state.targetArticle = preset.target;
+                updateLobbyPreview();
+                if (state.conn && state.isHost) {
+                    broadcastPeerData({
+                        type: 'CONFIG_UPDATE',
+                        start: state.startArticle,
+                        target: state.targetArticle
+                    });
+                }
+            }
+        }
+
+        function updateLobbyPreview() {
+            document.getElementById('lobby-start-text').textContent = state.startArticle;
+            document.getElementById('lobby-target-text').textContent = state.targetArticle;
+            document.getElementById('current-article-title').textContent = state.startArticle;
+            document.getElementById('target-article-title').textContent = state.targetArticle;
+        }
+
+        // =========================================================================
+        // MediaWiki Reachability Engine & Backward Link Tracing
+        // =========================================================================
+
+        async function generateRandomReachabilityPair() {
+            const btn = document.getElementById('btn-random-gen');
+            const origHtml = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Tracing Reachable Graph...`;
+            btn.disabled = true;
+
+            showToast("Tracing backward 3-5 hops via Wikipedia linkshere API...", "info");
+
+            try {
+                // Pick a target from a pool of major destination articles
+                const targetPool = [
+                    "Quantum mechanics", "Renaissance", "Theory of relativity", "Black hole", 
+                    "Photosynthesis", "Roman Empire", "Nuclear weapon", "Sun", "DNA", 
+                    "Artificial intelligence", "Industrial Revolution", "Eiffel Tower"
+                ];
+                const chosenTarget = targetPool[Math.floor(Math.random() * targetPool.length)];
+
+                // Trace backward 3 hops using linkshere API
+                let currentHopTarget = chosenTarget;
+                let pathBackwards = [chosenTarget];
+
+                for (let i = 0; i < 3; i++) {
+                    const linksHereUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=linkshere&lhnamespace=0&lhlimit=30&titles=${encodeURIComponent(currentHopTarget)}&format=json&origin=*`;
+                    const res = await fetch(linksHereUrl);
+                    const data = await res.json();
+                    
+                    const pages = data?.query?.pages || {};
+                    const pageId = Object.keys(pages)[0];
+                    const linksHere = pages[pageId]?.linkshere || [];
+
+                    if (linksHere.length === 0) break;
+
+                    // Filter out meta or obscure pages if possible
+                    const validLinks = linksHere.filter(l => !l.title.includes(":") && !l.title.includes("List of"));
+                    if (validLinks.length === 0) break;
+
+                    const randomIncoming = validLinks[Math.floor(Math.random() * validLinks.length)].title;
+                    currentHopTarget = randomIncoming;
+                    pathBackwards.push(randomIncoming);
+                }
+
+                const chosenStart = pathBackwards[pathBackwards.length - 1];
+
+                // Verify that chosenStart is not the target itself and not 1 click away
+                if (chosenStart && chosenStart.toLowerCase() !== chosenTarget.toLowerCase()) {
+                    // Check if chosenStart directly links to chosenTarget
+                    const isOneClickAway = await checkDirectLinkExists(chosenStart, chosenTarget);
+                    if (!isOneClickAway) {
+                        state.startArticle = chosenStart;
+                        state.targetArticle = chosenTarget;
+                        updateLobbyPreview();
+                        showToast(`Generated pair: ${chosenStart} ➔ ${chosenTarget}!`, "success");
+                    } else {
+                        // Fallback to random preset if 1-click away detected
+                        useFallbackPreset();
+                    }
+                } else {
+                    useFallbackPreset();
+                }
+            } catch (err) {
+                console.error("Reachability generation error:", err);
+                useFallbackPreset();
+            } finally {
+                btn.innerHTML = origHtml;
+                btn.disabled = false;
+            }
+        }
+
+        async function checkDirectLinkExists(source, target) {
+            try {
+                const url = `https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(source)}&prop=links&format=json&origin=*`;
+                const res = await fetch(url);
+                const data = await res.json();
+                const links = data?.parse?.links || [];
+                return links.some(l => l['*'].toLowerCase() === target.toLowerCase());
+            } catch {
+                return false;
+            }
+        }
+
+        function useFallbackPreset() {
+            const randomPreset = VERIFIED_PRESETS[Math.floor(Math.random() * VERIFIED_PRESETS.length)];
+            state.startArticle = randomPreset.start;
+            state.targetArticle = randomPreset.target;
+            updateLobbyPreview();
+            showToast(`Selected verified challenge: ${state.startArticle} ➔ ${state.targetArticle}`, "info");
+        }
+
+        // =========================================================================
+        // Wikipedia Article Fetcher & Parser
+        // =========================================================================
+
+        async function loadWikipediaArticle(title) {
+            const loader = document.getElementById('wiki-loader');
+            const content = document.getElementById('wiki-content');
+            const scrollContainer = document.getElementById('wiki-scroll-container');
+
+            loader.classList.remove('hidden');
+            content.classList.add('hidden');
+            scrollContainer.scrollTop = 0;
+
+            try {
+                const parseUrl = `https://en.wikipedia.org/w/api.php?action=parse&page=${encodeURIComponent(title)}&prop=text|categories|links&format=json&origin=*&redirects=1`;
+                const response = await fetch(parseUrl);
+                const data = await response.json();
+
+                if (data.error) {
+                    showToast(`Article Error: ${data.error.info}`, "error");
+                    loader.classList.add('hidden');
+                    return;
+                }
+
+                const rawHtml = data.parse.text['*'];
+                const categories = (data.parse.categories || []).map(c => c['*']);
+                const pageLinks = (data.parse.links || []).map(l => l['*']);
+                const resolvedTitle = data.parse.title;
+
+                state.currentArticle = resolvedTitle;
+                document.getElementById('current-article-title').textContent = resolvedTitle;
+
+                // Clean and Parse HTML string
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = rawHtml;
+
+                // Remove unneeded elements (edit buttons, citations, navboxes, footers, meta)
+                const selectorToRemove = [
+                    '.mw-editsection', '.reference', '.reflist', '.navbox', 
+                    '.vertical-navbox', '.catlinks', '.hatnote', '.ambox', 
+                    '.infobox.collapsible', '#toc', '.noprint', 'style', 'script'
+                ].join(',');
+                
+                tempDiv.querySelectorAll(selectorToRemove).forEach(el => el.remove());
+
+                // Transform and scope hyperlinks
+                const links = tempDiv.querySelectorAll('a');
+                let directLinkToTargetFound = false;
+
+                links.forEach(a => {
+                    const href = a.getAttribute('href');
+                    if (href && href.startsWith('/wiki/') && !href.includes(':') && !href.includes('#')) {
+                        const targetTitle = decodeURIComponent(href.replace('/wiki/', '')).replace(/_/g, ' ');
+                        a.setAttribute('data-wiki-title', targetTitle);
+                        a.removeAttribute('href'); // Strip href to prevent browser navigation
+
+                        if (targetTitle.toLowerCase() === state.targetArticle.toLowerCase()) {
+                            directLinkToTargetFound = true;
+                            a.classList.add('bg-emerald-500/30', 'ring-2', 'ring-emerald-500', 'px-1', 'rounded');
+                        }
+                    } else {
+                        // Strip non-article links
+                        a.replaceWith(document.createTextNode(a.textContent));
+                    }
+                });
+
+                content.innerHTML = tempDiv.innerHTML;
+                loader.classList.add('hidden');
+                content.classList.remove('hidden');
+
+                // Compute Hot/Cold Distance Status
+                calculateHotColdStatus(directLinkToTargetFound, categories, pageLinks);
+
+                // Check Win Condition
+                if (resolvedTitle.toLowerCase() === state.targetArticle.toLowerCase()) {
+                    triggerVictory();
+                }
+
+            } catch (err) {
+                console.error("Error loading Wikipedia article:", err);
+                showToast("Failed to connect to Wikipedia API.", "error");
+                loader.classList.add('hidden');
+            }
+        }
+
+        // =========================================================================
+        // Dynamic Hot / Cold Distance Detection
+        // =========================================================================
+
+        function calculateHotColdStatus(directLinkToTargetFound, currentCategories, pageLinks) {
+            let status = 'COLD';
+
+            if (directLinkToTargetFound) {
+                status = 'VERY HOT';
+            } else {
+                // Check if any outgoing link contains key target words or matches target category keywords
+                const targetWords = state.targetArticle.toLowerCase().split(' ').filter(w => w.length > 3);
+                const hasCategoryOverlap = currentCategories.some(cat => 
+                    targetWords.some(word => cat.toLowerCase().includes(word))
+                );
+
+                const hasLinkKeywordOverlap = pageLinks.some(link => 
+                    targetWords.some(word => link.toLowerCase().includes(word))
+                );
+
+                if (hasCategoryOverlap || hasLinkKeywordOverlap) {
+                    status = 'WARM';
+                } else if (pageLinks.length < 5) {
+                    status = 'FREEZING';
+                } else {
+                    status = 'COLD';
+                }
+            }
+
+            state.hotColdStatus = status;
+            renderHotColdUI(status);
+
+            // Broadcast status to opponent if in multiplayer
+            if (state.conn && state.gameStatus === 'playing') {
+                broadcastPeerData({
+                    type: 'PROGRESS_UPDATE',
+                    currentArticle: state.currentArticle,
+                    clicks: state.clicksCount,
+                    path: state.pathHistory,
+                    hotCold: status,
+                    time: state.elapsedTimeSec
+                });
+            }
+        }
+
+        function renderHotColdUI(status) {
+            const meter = document.getElementById('hot-cold-meter');
+            const icon = document.getElementById('hot-cold-icon');
+            const text = document.getElementById('hot-cold-text');
+
+            const mobileIcon = document.getElementById('mobile-hot-cold-icon');
+            const mobileText = document.getElementById('mobile-hot-cold-text');
+
+            let badgeConfig = {
+                'VERY HOT': {
+                    bg: 'bg-red-500 text-white animate-pulse-fast shadow-lg shadow-red-500/30',
+                    icon: '<i class="fa-solid fa-fire text-amber-300"></i>',
+                    text: '🔥 VERY HOT (1 CLICK AWAY!)',
+                    mIcon: '🔥',
+                    mText: 'VERY HOT'
+                },
+                'WARM': {
+                    bg: 'bg-amber-500/20 text-amber-500 border border-amber-500/30',
+                    icon: '<i class="fa-solid fa-temperature-arrow-up text-amber-500"></i>',
+                    text: '♨️ WARM (Closing in)',
+                    mIcon: '♨️',
+                    mText: 'WARM'
+                },
+                'COLD': {
+                    bg: 'bg-slate-300 dark:bg-slate-800 text-slate-600 dark:text-slate-300',
+                    icon: '<i class="fa-solid fa-snowflake text-cyan-400"></i>',
+                    text: '❄️ COLD',
+                    mIcon: '❄️',
+                    mText: 'COLD'
+                },
+                'FREEZING': {
+                    bg: 'bg-cyan-900/30 text-cyan-400 border border-cyan-500/30',
+                    icon: '<i class="fa-solid fa-icicles text-cyan-300"></i>',
+                    text: '🧊 FREEZING (Dead end)',
+                    mIcon: '🧊',
+                    mText: 'FREEZING'
+                }
+            }[status];
+
+            meter.className = `flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all duration-300 ${badgeConfig.bg}`;
+            icon.innerHTML = badgeConfig.icon;
+            text.textContent = badgeConfig.text;
+
+            mobileIcon.textContent = badgeConfig.mIcon;
+            mobileText.textContent = badgeConfig.mText;
+        }
+
+        // =========================================================================
+        // Scoped Link Interception & Navigation Logic
+        // =========================================================================
+
+        function setupLinkInterception() {
+            const wikiContainer = document.getElementById('wiki-content');
+
+            wikiContainer.addEventListener('click', (e) => {
+                const link = e.target.closest('a[data-wiki-title]');
+                if (!link) return;
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (state.gameStatus !== 'playing') {
+                    showToast("Start the race first!", "warning");
+                    return;
+                }
+
+                const clickedTitle = link.getAttribute('data-wiki-title');
+                navigateToArticle(clickedTitle);
+            });
+        }
+
+        function navigateToArticle(title, isUndo = false) {
+            state.clicksCount++;
+            state.pathHistory.push(title);
+
+            updateStatsUI();
+            renderPathHistory();
+
+            loadWikipediaArticle(title);
+        }
+
+        function undoLastStep() {
+            if (state.pathHistory.length <= 1) return;
+
+            state.pathHistory.pop(); // Remove current
+            const previousTitle = state.pathHistory[state.pathHistory.length - 1];
+
+            // Penalty click
+            state.clicksCount++;
+            
+            showToast("Step undone (+1 penalty click)", "info");
+            updateStatsUI();
+            renderPathHistory();
+
+            loadWikipediaArticle(previousTitle);
+        }
+
+        function updateStatsUI() {
+            document.getElementById('stat-clicks').textContent = state.clicksCount;
+            document.getElementById('mobile-stat-clicks').textContent = state.clicksCount;
+            document.getElementById('history-badge').textContent = state.pathHistory.length;
+
+            const canUndo = state.pathHistory.length > 1;
+            document.getElementById('btn-undo').disabled = !canUndo;
+            document.getElementById('btn-drawer-undo').disabled = !canUndo;
+        }
+
+        function renderPathHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = state.pathHistory.map((step, idx) => `
+                <div class="flex items-center justify-between p-3 rounded-xl ${idx === state.pathHistory.length - 1 ? 'bg-indigo-500/10 border border-indigo-500/30 font-bold text-indigo-500' : 'bg-slate-100 dark:bg-slate-800/60 text-slate-700 dark:text-slate-300'}">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-xs font-mono w-5 h-5 rounded-full bg-slate-300 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300">${idx + 1}</span>
+                        <span class="truncate text-sm">${step}</span>
+                    </div>
+                    ${idx === state.pathHistory.length - 1 ? '<span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-indigo-500 text-white">Current</span>' : ''}
+                </div>
+            `).join('');
+        }
+
+        function toggleHistoryDrawer() {
+            const drawer = document.getElementById('history-drawer');
+            drawer.classList.toggle('translate-x-full');
+        }
+
+        // =========================================================================
+        // Real-Time WebRTC PeerJS Multiplayer Engine
+        // =========================================================================
+
+        function setGameMode(mode) {
+            state.gameMode = mode;
+            const singleTab = document.getElementById('tab-single');
+            const multiTab = document.getElementById('tab-multi');
+            const multiBox = document.getElementById('multiplayer-config-box');
+            const multiHud = document.getElementById('multiplayer-hud');
+            const modeBadge = document.getElementById('mode-badge');
+
+            if (mode === 'single') {
+                singleTab.className = "py-2.5 rounded-lg text-sm font-bold transition bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400";
+                multiTab.className = "py-2.5 rounded-lg text-sm font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+                multiBox.classList.add('hidden');
+                multiHud.classList.add('hidden');
+                modeBadge.textContent = "Single Player";
+            } else {
+                multiTab.className = "py-2.5 rounded-lg text-sm font-bold transition bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400";
+                singleTab.className = "py-2.5 rounded-lg text-sm font-bold transition text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+                multiBox.classList.remove('hidden');
+                multiHud.classList.remove('hidden');
+                modeBadge.textContent = "WebRTC Multiplayer";
+
+                if (!state.peer) {
+                    initPeerJS();
+                }
+            }
+        }
+
+        function initPeerJS() {
+            state.peer = new Peer();
+
+            state.peer.on('open', (id) => {
+                state.peerId = id;
+                document.getElementById('peer-connection-badge').textContent = `Room ID: ${id.substring(0, 6)}...`;
+                document.getElementById('peer-connection-badge').className = "text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-semibold border border-emerald-500/20";
+                document.getElementById('quick-room-input').value = window.location.origin + window.location.pathname + '?room=' + id;
+            });
+
+            state.peer.on('connection', (conn) => {
+                state.conn = conn;
+                state.isHost = true;
+                setupConnectionHandlers();
+                showToast("Opponent joined your room!", "success");
+            });
+
+            state.peer.on('error', (err) => {
+                console.error("PeerJS Error:", err);
+                showToast("PeerJS Connection Error", "error");
+            });
+        }
+
+        function joinPeerRoom() {
+            const roomCode = document.getElementById('room-code-input').value.trim();
+            if (!roomCode) {
+                showToast("Please enter a Room ID", "warning");
+                return;
+            }
+
+            state.isHost = false;
+            state.conn = state.peer.connect(roomCode);
+            setupConnectionHandlers();
+        }
+
+        function setupConnectionHandlers() {
+            document.getElementById('opponent-peer-status').textContent = "Connected";
+            document.getElementById('opponent-peer-status').className = "text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-bold border border-emerald-500/20";
+
+            state.conn.on('open', () => {
+                showToast("Connected to opponent!", "success");
+
+                if (state.isHost) {
+                    broadcastPeerData({
+                        type: 'CONFIG_UPDATE',
+                        start: state.startArticle,
+                        target: state.targetArticle
+                    });
+                }
+            });
+
+            state.conn.on('data', (data) => {
+                handlePeerData(data);
+            });
+
+            state.conn.on('close', () => {
+                showToast("Opponent disconnected", "warning");
+                document.getElementById('opponent-peer-status').textContent = "Disconnected";
+            });
+        }
+
+        function broadcastPeerData(data) {
+            if (state.conn && state.conn.open) {
+                state.conn.send(data);
+            }
+        }
+
+        function handlePeerData(data) {
+            switch (data.type) {
+                case 'CONFIG_UPDATE':
+                    state.startArticle = data.start;
+                    state.targetArticle = data.target;
+                    updateLobbyPreview();
+                    showToast("Host updated race parameters", "info");
+                    break;
+
+                case 'START_COUNTDOWN':
+                    triggerCountdown();
+                    break;
+
+                case 'PROGRESS_UPDATE':
+                    state.opponentState = data;
+                    renderOpponentHUD();
+                    break;
+
+                case 'OPPONENT_WON':
+                    if (state.gameStatus === 'playing') {
+                        state.gameStatus = 'lost';
+                        clearInterval(state.timerInterval);
+                        triggerLossModal(data);
+                    }
+                    break;
+            }
+        }
+
+        function renderOpponentHUD() {
+            document.getElementById('opponent-current-page').textContent = state.opponentState.currentArticle || 'In race';
+            document.getElementById('opponent-clicks').textContent = state.opponentState.clicks || 0;
+            
+            const hotColdContainer = document.getElementById('opponent-hotcold');
+            hotColdContainer.innerHTML = `<span>${state.opponentState.hotCold || 'COLD'}</span>`;
+
+            const pathList = document.getElementById('opponent-path-list');
+            if (state.opponentState.path && state.opponentState.path.length > 0) {
+                pathList.innerHTML = state.opponentState.path.map((step, idx) => `
+                    <div class="truncate">• ${idx + 1}. ${step}</div>
+                `).join('');
+            }
+        }
+
+        function parseUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomParam = urlParams.get('room');
+            if (roomParam) {
+                setGameMode('multi');
+                document.getElementById('room-code-input').value = roomParam;
+                setTimeout(() => {
+                    joinPeerRoom();
+                }, 1000);
+            }
+        }
+
+        function copyInviteLink() {
+            const input = document.getElementById('quick-room-input');
+            input.select();
+            document.execCommand('copy');
+            showToast("Invite link copied to clipboard!", "success");
+        }
+
+        // =========================================================================
+        // Game Loop & Victory Handlers
+        // =========================================================================
+
+        function openLobbyModal() {
+            document.getElementById('lobby-modal').classList.remove('hidden');
+        }
+
+        function startRaceSession() {
+            document.getElementById('lobby-modal').classList.add('hidden');
+
+            if (state.gameMode === 'multi' && state.conn) {
+                broadcastPeerData({ type: 'START_COUNTDOWN' });
+            }
+
+            triggerCountdown();
+        }
+
+        function triggerCountdown() {
+            const modal = document.getElementById('countdown-modal');
+            const numEl = document.getElementById('countdown-number');
+            modal.classList.remove('hidden');
+
+            let count = 3;
+            numEl.textContent = count;
+
+            const interval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    numEl.textContent = count;
+                } else if (count === 0) {
+                    numEl.textContent = "GO!";
+                } else {
+                    clearInterval(interval);
+                    modal.classList.add('hidden');
+                    initRaceLoop();
+                }
+            }, 900);
+        }
+
+        function initRaceLoop() {
+            state.clicksCount = 0;
+            state.pathHistory = [state.startArticle];
+            state.elapsedTimeSec = 0;
+            state.gameStatus = 'playing';
+
+            updateStatsUI();
+            renderPathHistory();
+
+            // Start Timer
+            if (state.timerInterval) clearInterval(state.timerInterval);
+            state.startTime = Date.now();
+            state.timerInterval = setInterval(updateTimer, 1000);
+
+            // Load initial article
+            loadWikipediaArticle(state.startArticle);
+        }
+
+        function updateTimer() {
+            state.elapsedTimeSec++;
+            const mins = String(Math.floor(state.elapsedTimeSec / 60)).padStart(2, '0');
+            const secs = String(state.elapsedTimeSec % 60).padStart(2, '0');
+            const formatted = `${mins}:${secs}`;
+
+            document.getElementById('stat-timer').textContent = formatted;
+            document.getElementById('mobile-stat-timer').textContent = formatted;
+        }
+
+        function triggerVictory() {
+            state.gameStatus = 'won';
+            clearInterval(state.timerInterval);
+
+            // Trigger Confetti
+            confetti({
+                particleCount: 120,
+                spread: 80,
+                origin: { y: 0.6 }
+            });
+
+            // Notify opponent if in multiplayer
+            if (state.conn) {
+                broadcastPeerData({
+                    type: 'OPPONENT_WON',
+                    clicks: state.clicksCount,
+                    time: state.elapsedTimeSec,
+                    path: state.pathHistory
+                });
+            }
+
+            // Populate Victory Modal
+            document.getElementById('victory-title').textContent = "Victory! Target Reached!";
+            document.getElementById('victory-subtitle').textContent = `You navigated from ${state.startArticle} to ${state.targetArticle}!`;
+            document.getElementById('final-stat-clicks').textContent = state.clicksCount;
+            document.getElementById('final-stat-time').textContent = document.getElementById('stat-timer').textContent;
+            document.getElementById('final-stat-hops').textContent = state.pathHistory.length - 1;
+
+            const pathContainer = document.getElementById('final-path-container');
+            pathContainer.innerHTML = state.pathHistory.map((step, idx) => `
+                <div class="flex items-center gap-2">
+                    <span class="text-xs font-mono text-indigo-500 font-bold">${idx + 1}.</span>
+                    <span>${step}</span>
+                </div>
+            `).join('');
+
+            document.getElementById('victory-modal').classList.remove('hidden');
+        }
+
+        function triggerLossModal(opponentData) {
+            document.getElementById('victory-icon-box').className = "w-20 h-20 rounded-3xl bg-red-500/20 text-red-500 flex items-center justify-center text-4xl mx-auto mb-4 border border-red-500/30";
+            document.getElementById('victory-icon-box').innerHTML = `<i class="fa-solid fa-flag text-red-500"></i>`;
+            document.getElementById('victory-title').textContent = "Opponent Won!";
+            document.getElementById('victory-subtitle').textContent = `Your opponent reached ${state.targetArticle} first in ${opponentData.clicks} clicks!`;
+
+            document.getElementById('final-stat-clicks').textContent = state.clicksCount;
+            document.getElementById('final-stat-time').textContent = document.getElementById('stat-timer').textContent;
+            document.getElementById('final-stat-hops').textContent = state.pathHistory.length - 1;
+
+            document.getElementById('victory-modal').classList.remove('hidden');
+        }
+
+        function copyVictoryStats() {
+            const timeStr = document.getElementById('stat-timer').textContent;
+            const text = `🌐 WikiRace Victory!\n🚀 ${state.startArticle} ➔ ${state.targetArticle}\n👆 ${state.clicksCount} Clicks | ⏱️ ${timeStr}\nPlay WikiRace live on GitHub Pages!`;
+
+            const dummy = document.createElement('textarea');
+            document.body.appendChild(dummy);
+            dummy.value = text;
+            dummy.select();
+            document.execCommand('copy');
+            document.body.removeChild(dummy);
+
+            showToast("Victory stats copied to clipboard!", "success");
+        }
+
+        // =========================================================================
+        // Custom Non-Blocking Toast Notification System
+        // =========================================================================
+
+        function showToast(message, type = "info") {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            const typeStyles = {
+                info: "bg-slate-900 text-white border-slate-700",
+                success: "bg-emerald-950 text-emerald-200 border-emerald-700",
+                warning: "bg-amber-950 text-amber-200 border-amber-700",
+                error: "bg-red-950 text-red-200 border-red-700"
+            }[type];
+
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl border text-xs font-semibold shadow-2xl flex items-center gap-2 transform transition-all duration-300 translate-y-2 opacity-0 ${typeStyles}`;
+            toast.innerHTML = `<span>${message}</span>`;
+
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+    </script>
+</body>
+</html>
