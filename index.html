@@ -1,684 +1,732 @@
 <!DOCTYPE html>
 <html lang="en" class="dark">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WikiRace: The Web Game</title>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WikiRace: The Web Game</title>
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              wiki: { 100: '#f6f6f6', 800: '#202122', 900: '#101418' }
-            }
-          }
-        }
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        wiki: { 100: '#f6f6f6', 800: '#202122', 900: '#101418' }
       }
-    </script>
+    }
+  }
+}
+</script>
 
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- FontAwesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <!-- PeerJS & Canvas Confetti -->
-    <script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+<!-- PeerJS & Canvas Confetti -->
+<script src="https://unpkg.com/peerjs@1.5.1/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
-    <style>
-      /* Custom Wikipedia Content Sanitization & Styling */
-      #wiki-content { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; font-size: 1.1rem; }
+<style>
+/* Custom Wikipedia Content Sanitization & Styling */
+#wiki-content { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; font-size: 1.1rem; }
 
-      /* Hide Unwanted Wiki Elements */
-      #wiki-content .infobox, #wiki-content .reference, #wiki-content .navbox,
-      #wiki-content .reflist, #wiki-content .mw-editsection, #wiki-content .sidebar,
-      #wiki-content .metadata, #wiki-content .ambox, #wiki-content .noprint,
-      #wiki-content #toc { display: none !important; }
+/* Hide Unwanted Wiki Elements */
+#wiki-content .infobox, #wiki-content .reference, #wiki-content .navbox,
+#wiki-content .reflist, #wiki-content .mw-editsection, #wiki-content .sidebar,
+#wiki-content .metadata, #wiki-content .ambox, #wiki-content .noprint,
+#wiki-content #toc { display: none !important; }
 
-      /* Link Styling */
-      #wiki-content a { color: #3b82f6; text-decoration: none; font-weight: 500; transition: color 0.2s; }
-      #wiki-content a:hover { text-decoration: underline; }
-      #wiki-content a.new { color: #ef4444 !important; pointer-events: none; text-decoration: none; cursor: default; } /* Red links */
+/* Link Styling */
+#wiki-content a { color: #3b82f6; text-decoration: none; font-weight: 500; transition: color 0.2s; }
+#wiki-content a:hover { text-decoration: underline; }
+#wiki-content a.new { color: #ef4444 !important; pointer-events: none; text-decoration: none; cursor: default; }
 
-      /* Images and Layout */
-      #wiki-content img { max-width: 100%; height: auto; border-radius: 0.5rem; }
-      #wiki-content p { margin-bottom: 1em; color: inherit; }
-      #wiki-content h1, #wiki-content h2, #wiki-content h3 { font-weight: bold; margin-top: 1.5em; margin-bottom: 0.5em; border-bottom: 1px solid #4b5563; padding-bottom: 0.2em; }
-      .dark #wiki-content h1, .dark #wiki-content h2, .dark #wiki-content h3 { border-color: #374151; }
+/* Images and Layout */
+#wiki-content img { max-width: 100%; height: auto; border-radius: 0.5rem; }
+#wiki-content p { margin-bottom: 1em; color: inherit; }
+#wiki-content h1, #wiki-content h2, #wiki-content h3 { font-weight: bold; margin-top: 1.5em; margin-bottom: 0.5em; border-bottom: 1px solid #4b5563; padding-bottom: 0.2em; }
+.dark #wiki-content h1, .dark #wiki-content h2, .dark #wiki-content h3 { border-color: #374151; }
 
-      /* Glassmorphism Classes */
-      .glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
-      .dark .glass { background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); }
+/* Glassmorphism Classes */
+.glass { background: rgba(255, 255, 255, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.2); }
+.dark .glass { background: rgba(17, 24, 39, 0.7); border: 1px solid rgba(255, 255, 255, 0.1); }
 
-      /* Loading Spinner */
-      .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
-      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    </style>
-  </head>
-  <body class="bg-wiki-100 text-gray-900 dark:bg-wiki-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
+/* Loading Spinner */
+.loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+</style>
+</head>
+<body class="bg-wiki-100 text-gray-900 dark:bg-wiki-900 dark:text-gray-100 min-h-screen transition-colors duration-300">
 
-    <!-- Navbar -->
-    <nav class="fixed top-0 w-full z-50 glass shadow-lg">
-      <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-        <div class="flex items-center gap-2 cursor-pointer" onclick="UI.showScreen('menu')">
-          <i class="fa-solid fa-earth-americas text-blue-500 text-2xl"></i>
-          <h1 class="font-bold text-xl tracking-wider">WIKIRACE</h1>
+<!-- Navbar -->
+<nav class="fixed top-0 w-full z-50 glass shadow-lg">
+  <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-2 cursor-pointer" onclick="UI.goHome()">
+      <i class="fa-solid fa-earth-americas text-blue-500 text-2xl"></i>
+      <h1 class="font-bold text-xl tracking-wider">WIKIRACE</h1>
+    </div>
+    <button onclick="UI.toggleTheme()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+      <i class="fa-solid fa-moon dark:hidden"></i>
+      <i class="fa-solid fa-sun hidden dark:block"></i>
+    </button>
+  </div>
+</nav>
+
+<!-- Main Content Area -->
+<main class="pt-20 pb-10 max-w-7xl mx-auto px-4">
+
+  <!-- Screen: Login Gate -->
+  <div id="screen-login" class="max-w-md mx-auto mt-20">
+    <div class="glass p-8 rounded-2xl shadow-xl text-center">
+      <i class="fa-solid fa-graduation-cap text-5xl text-blue-500 mb-4"></i>
+      <h2 class="text-3xl font-bold mb-2">Student Access</h2>
+      <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Please verify your school email to play.</p>
+
+      <input type="email" id="student-email" placeholder="student@panthers.pequannock.org"
+        class="w-full p-3 rounded-lg mb-4 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:outline-none focus:border-blue-500 placeholder-gray-400">
+
+      <p id="login-error" class="text-red-500 text-sm hidden mb-4 bg-red-100 dark:bg-red-900/30 p-2 rounded">
+        Access Denied: Must use a valid @panthers.pequannock.org domain.
+      </p>
+
+      <button onclick="Auth.verify()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition shadow-lg">
+        Enter Game
+      </button>
+    </div>
+  </div>
+
+  <!-- Screen: Main Menu -->
+  <div id="screen-menu" class="hidden max-w-2xl mx-auto mt-10">
+    <div class="glass p-8 rounded-2xl shadow-xl text-center">
+      <h2 class="text-3xl font-bold mb-6">Choose Your Race</h2>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Single Player -->
+        <div class="p-6 rounded-xl border border-gray-300 dark:border-gray-700 hover:border-blue-500 cursor-pointer transition" onclick="UI.showScreen('singleplayer')">
+          <i class="fa-solid fa-user text-4xl text-blue-500 mb-3"></i>
+          <h3 class="text-xl font-bold">Single Player</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Race against time to find the target.</p>
         </div>
-        <button onclick="UI.toggleTheme()" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition">
-          <i class="fa-solid fa-moon dark:hidden"></i>
-          <i class="fa-solid fa-sun hidden dark:block"></i>
+
+        <!-- Multiplayer -->
+        <div class="p-6 rounded-xl border border-gray-300 dark:border-gray-700 hover:border-purple-500 cursor-pointer transition" onclick="UI.showScreen('multiplayer')">
+          <i class="fa-solid fa-user-group text-4xl text-purple-500 mb-3"></i>
+          <h3 class="text-xl font-bold">Multiplayer</h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Race a friend in real-time WebRTC.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen: Single Player Setup -->
+  <div id="screen-singleplayer" class="hidden max-w-2xl mx-auto mt-10">
+    <div class="glass p-8 rounded-2xl shadow-xl">
+      <button onclick="UI.showScreen('menu')" class="mb-4 text-sm text-blue-500 hover:underline"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      <h2 class="text-2xl font-bold mb-6">Select Difficulty</h2>
+
+      <div class="space-y-4">
+        <button onclick="Game.startDynamic('easy')" class="w-full flex items-center justify-between bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl transition shadow-md">
+          <span class="text-xl">Easy</span>
+          <span class="text-sm font-normal opacity-90">Famous Target & Short Path</span>
+        </button>
+
+        <button onclick="Game.startDynamic('medium')" class="w-full flex items-center justify-between bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-4 px-6 rounded-xl transition shadow-md">
+          <span class="text-xl">Medium</span>
+          <span class="text-sm font-normal opacity-90">Random Target & Average Path</span>
+        </button>
+
+        <button onclick="Game.startDynamic('hard')" class="w-full flex items-center justify-between bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl transition shadow-md">
+          <span class="text-xl">Hard</span>
+          <span class="text-sm font-normal opacity-90">Random Target & Obscure Path</span>
         </button>
       </div>
-    </nav>
-
-    <!-- Main Content Area -->
-    <main class="pt-20 pb-10 max-w-7xl mx-auto px-4">
-
-      <!-- Screen: Main Menu -->
-      <div id="screen-menu" class="max-w-2xl mx-auto mt-10">
-        <div class="glass p-8 rounded-2xl shadow-xl text-center">
-          <h2 class="text-3xl font-bold mb-6">Choose Your Race</h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <!-- Single Player -->
-            <div class="p-6 rounded-xl border border-gray-300 dark:border-gray-700 hover:border-blue-500 cursor-pointer transition" onclick="UI.showScreen('singleplayer')">
-              <i class="fa-solid fa-user text-4xl text-blue-500 mb-3"></i>
-              <h3 class="text-xl font-bold">Single Player</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Race against time to find the target.</p>
-            </div>
-
-            <!-- Multiplayer -->
-            <div class="p-6 rounded-xl border border-gray-300 dark:border-gray-700 hover:border-purple-500 cursor-pointer transition" onclick="UI.showScreen('multiplayer')">
-              <i class="fa-solid fa-user-group text-4xl text-purple-500 mb-3"></i>
-              <h3 class="text-xl font-bold">Multiplayer</h3>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">Race a friend in real-time WebRTC.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Screen: Single Player Setup -->
-      <div id="screen-singleplayer" class="hidden max-w-2xl mx-auto mt-10">
-        <div class="glass p-8 rounded-2xl shadow-xl">
-          <button onclick="UI.showScreen('menu')" class="mb-4 text-sm text-blue-500 hover:underline"><i class="fa-solid fa-arrow-left"></i> Back</button>
-          <h2 class="text-2xl font-bold mb-4">Single Player Setup</h2>
-
-          <div class="space-y-4">
-            <button onclick="Game.startRandomGuaranteed()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition">
-              <i class="fa-solid fa-shuffle mr-2"></i> Play Random Guaranteed Route
-            </button>
-
-            <div class="relative flex py-5 items-center">
-              <div class="flex-grow border-t border-gray-400 dark:border-gray-600"></div>
-              <span class="flex-shrink-0 mx-4 text-gray-400">Presets</span>
-              <div class="flex-grow border-t border-gray-400 dark:border-gray-600"></div>
-            </div>
-
-            <div class="grid grid-cols-1 gap-2" id="preset-list">
-              <!-- Presets injected via JS -->
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Screen: Multiplayer Setup -->
-      <div id="screen-multiplayer" class="hidden max-w-2xl mx-auto mt-10">
-        <div class="glass p-8 rounded-2xl shadow-xl">
-          <button onclick="UI.showScreen('menu')" class="mb-4 text-sm text-blue-500 hover:underline"><i class="fa-solid fa-arrow-left"></i> Back</button>
-          <h2 class="text-2xl font-bold mb-4">Multiplayer Lobby</h2>
-
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- Host -->
-            <div class="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <h3 class="font-bold mb-2">Host a Game</h3>
-              <button onclick="Multiplayer.hostGame()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold mb-2">Create Room</button>
-              <div id="room-code-display" class="hidden text-center">
-                <p class="text-sm">Share this link:</p>
-                <input type="text" id="share-link" readonly class="w-full text-xs p-2 mt-1 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-center cursor-pointer" onclick="this.select(); document.execCommand('copy'); alert('Link copied!');">
-                <p class="text-xs text-yellow-500 mt-2" id="host-status">Waiting for opponent...</p>
-              </div>
-            </div>
-
-            <!-- Join -->
-            <div class="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-              <h3 class="font-bold mb-2">Join a Game</h3>
-              <input type="text" id="join-code" placeholder="Enter Room Code" class="w-full p-2 rounded mb-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700">
-              <button onclick="Multiplayer.joinGame()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold">Join Room</button>
-              <p class="text-xs text-blue-500 mt-2 hidden" id="join-status">Connecting...</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Screen: Game Area -->
-      <div id="screen-game" class="hidden max-w-5xl mx-auto">
-        <!-- HUD -->
-        <div class="glass p-4 rounded-xl shadow-md mb-6 sticky top-20 z-40 flex flex-wrap gap-4 items-center justify-between">
-
-          <div class="flex items-center gap-4">
-            <button onclick="Game.undo()" class="px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition" title="Undo Last Click">
-              <i class="fa-solid fa-rotate-left"></i>
-            </button>
-            <div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">Target Article</p>
-              <h2 class="text-xl font-bold text-blue-600 dark:text-blue-400" id="hud-target">Loading...</h2>
-            </div>
-          </div>
-
-          <div class="flex gap-6 items-center">
-            <div class="text-center">
-              <p class="text-xs text-gray-500 dark:text-gray-400">Status</p>
-              <div id="hud-distance" class="font-bold text-lg text-blue-500"> FREEZING</div>
-            </div>
-            <div class="text-center">
-              <p class="text-xs text-gray-500 dark:text-gray-400">Clicks</p>
-              <div id="hud-clicks" class="font-bold text-xl">0</div>
-            </div>
-            <div class="text-center">
-              <p class="text-xs text-gray-500 dark:text-gray-400">Time</p>
-              <div id="hud-time" class="font-bold text-xl w-16">00:00</div>
-            </div>
-          </div>
-
-          <!-- Opponent HUD (Multiplayer Only) -->
-          <div id="hud-opponent" class="hidden border-l border-gray-400 dark:border-gray-600 pl-4 text-sm">
-            <p class="text-xs text-purple-500 font-bold mb-1">Opponent</p>
-            <div class="flex justify-between gap-4">
-              <span>Clicks: <b id="opp-clicks">0</b></span>
-              <span id="opp-status"> COLD</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Title & Path -->
-        <div class="mb-4">
-          <h1 id="article-title" class="text-4xl font-serif font-bold mb-2">Article Title</h1>
-          <div class="text-sm text-gray-500 dark:text-gray-400 flex flex-wrap gap-2 items-center" id="path-history">
-            <!-- Path injected via JS -->
-          </div>
-        </div>
-
-        <!-- Loading Overlay inside Game -->
-        <div id="wiki-loading" class="hidden flex justify-center py-20">
-          <div class="loader"></div>
-        </div>
-
-        <!-- Wiki Content Render Area -->
-        <div id="wiki-content" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-inner min-h-[50vh]">
-          <!-- Wikipedia HTML Injected Here -->
-        </div>
-      </div>
-
-    </main>
-
-    <!-- Modals & Overlays -->
-    <div id="overlay-countdown" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center">
-      <h1 id="countdown-text" class="text-9xl font-bold text-white animate-pulse">3</h1>
     </div>
+  </div>
 
-    <div id="modal-victory" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
-      <div class="glass bg-white dark:bg-gray-900 p-8 rounded-2xl max-w-lg w-full text-center">
-        <i class="fa-solid fa-trophy text-6xl text-yellow-400 mb-4"></i>
-        <h2 id="victory-title" class="text-3xl font-bold mb-2">Race Complete!</h2>
-        <p id="victory-desc" class="text-lg text-gray-600 dark:text-gray-300 mb-6">You found the target.</p>
+  <!-- Screen: Multiplayer Setup -->
+  <div id="screen-multiplayer" class="hidden max-w-2xl mx-auto mt-10">
+    <div class="glass p-8 rounded-2xl shadow-xl">
+      <button onclick="UI.showScreen('menu')" class="mb-4 text-sm text-blue-500 hover:underline"><i class="fa-solid fa-arrow-left"></i> Back</button>
+      <h2 class="text-2xl font-bold mb-4">Multiplayer Lobby</h2>
 
-        <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-6 text-left">
-          <h3 class="font-bold mb-2">Your Route:</h3>
-          <div id="victory-path" class="text-sm space-y-1"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Host -->
+        <div class="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+          <h3 class="font-bold mb-2">Host a Game</h3>
+          <label class="block text-xs mb-1 text-gray-500">Route Difficulty</label>
+          <select id="host-difficulty" class="w-full p-2 rounded mb-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-sm">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+          <button onclick="Multiplayer.hostGame()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg font-bold mb-2 transition">Create Room</button>
+
+          <div id="room-code-display" class="hidden text-center mt-3 border-t border-gray-300 dark:border-gray-700 pt-3">
+            <p class="text-sm">Share this link:</p>
+            <input type="text" id="share-link" readonly class="w-full text-xs p-2 mt-1 rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-center cursor-pointer" onclick="UI.copyLink(this)">
+            <p class="text-xs text-yellow-500 mt-2 font-bold" id="host-status">Waiting for opponent...</p>
+          </div>
         </div>
 
-        <button onclick="UI.showScreen('menu')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg">Return to Menu</button>
+        <!-- Join -->
+        <div class="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+          <h3 class="font-bold mb-2">Join a Game</h3>
+          <label class="block text-xs mb-1 text-gray-500">Room Code</label>
+          <input type="text" id="join-code" placeholder="e.g. RACE-ABCD" class="w-full p-2 rounded mb-3 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 uppercase">
+          <button onclick="Multiplayer.joinGame()" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-bold transition">Join Room</button>
+          <p class="text-xs text-blue-500 mt-2 hidden font-bold text-center" id="join-status">Connecting...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen: Game Area -->
+  <div id="screen-game" class="hidden max-w-5xl mx-auto">
+    <!-- HUD -->
+    <div class="glass p-4 rounded-xl shadow-md mb-6 sticky top-20 z-40 flex flex-wrap gap-4 items-center justify-between">
+
+      <div class="flex items-center gap-4">
+        <button onclick="Game.undo()" class="px-3 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition" title="Undo Last Click">
+          <i class="fa-solid fa-rotate-left"></i>
+        </button>
+        <div>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Target Article</p>
+          <h2 class="text-xl font-bold text-blue-600 dark:text-blue-400" id="hud-target">Loading...</h2>
+        </div>
+      </div>
+
+      <div class="flex gap-6 items-center">
+        <div class="text-center">
+          <p class="text-xs text-gray-500 dark:text-gray-400">Status</p>
+          <div id="hud-distance" class="font-bold text-lg text-blue-500">FREEZING</div>
+        </div>
+        <div class="text-center">
+          <p class="text-xs text-gray-500 dark:text-gray-400">Clicks</p>
+          <div id="hud-clicks" class="font-bold text-xl">0</div>
+        </div>
+        <div class="text-center">
+          <p class="text-xs text-gray-500 dark:text-gray-400">Time</p>
+          <div id="hud-time" class="font-bold text-xl w-16">00:00</div>
+        </div>
+      </div>
+
+      <!-- Opponent HUD (Multiplayer Only) -->
+      <div id="hud-opponent" class="hidden border-l border-gray-400 dark:border-gray-600 pl-4 text-sm">
+        <p class="text-xs text-purple-500 font-bold mb-1">Opponent</p>
+        <div class="flex justify-between gap-4">
+          <span>Clicks: <b id="opp-clicks">0</b></span>
+          <span id="opp-status">COLD</span>
+        </div>
       </div>
     </div>
 
-    <!-- Application Logic -->
-    <script>
-      // --- 1. CONFIGURATION & STATE ---
-      const API_BASE = "https://en.wikipedia.org/w/api.php?origin=*&format=json";
-      const PRESETS = [
-        { start: "Cheetos", target: "Quantum mechanics" },
-        { start: "Nintendo", target: "Renaissance" },
-        { start: "Banana", target: "Apollo 11" },
-        { start: "Harry Potter", target: "Thermodynamics" }
-      ];
+    <!-- Title & Path -->
+    <div class="mb-4">
+      <h1 id="article-title" class="text-4xl font-serif font-bold mb-2">Article Title</h1>
+      <div class="text-sm text-gray-500 dark:text-gray-400 flex flex-wrap gap-2 items-center" id="path-history">
+        <!-- Path injected via JS -->
+      </div>
+    </div>
 
-      const State = {
-        mode: 'single', // single, multi
-        startArticle: '',
-        targetArticle: '',
-        currentArticle: '',
-        targetCategories: [],
-        path: [],
-        htmlHistory: [],
-        clicks: 0,
-        startTime: null,
-        timerInterval: null,
-        isHost: false,
-        roomCode: null
-      };
+    <!-- Loading Overlay inside Game -->
+    <div id="wiki-loading" class="hidden flex justify-center py-20">
+      <div class="loader"></div>
+    </div>
 
-      // --- 2. WIKIPEDIA API WRAPPER ---
-      const WikiAPI = {
-        async fetchArticle(title) {
-          const res = await fetch(`${API_BASE}&action=parse&page=${encodeURIComponent(title)}&prop=text|categories|links|displaytitle&redirects=1`);
-          const data = await res.json();
-          if (data.error) throw new Error(data.error.info);
-          return {
-            title: data.parse.title,
-            html: data.parse.text['*'],
-            categories: data.parse.categories.map(c => c['*']),
-            links: data.parse.links.filter(l => l.ns === 0).map(l => l['*']) // Only main namespace
-          };
-        },
+    <!-- Wiki Content Render Area -->
+    <div id="wiki-content" class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-inner min-h-[50vh]">
+      <!-- Wikipedia HTML Injected Here -->
+    </div>
+  </div>
 
-        async getRandomArticle() {
-          const res = await fetch(`${API_BASE}&action=query&list=random&rnnamespace=0&rnlimit=1`);
-          const data = await res.json();
-          return data.query.random[0].title;
-        },
+</main>
 
-        async getIncomingLinks(title) {
-          const res = await fetch(`${API_BASE}&action=query&prop=linkshere&titles=${encodeURIComponent(title)}&lhnamespace=0&lhlimit=50`);
-          const data = await res.json();
-          const pages = data.query.pages;
-          const pageId = Object.keys(pages)[0];
-          return pages[pageId].linkshere ? pages[pageId].linkshere.map(l => l.title) : [];
+<!-- Modals & Overlays -->
+<div id="overlay-countdown" class="hidden fixed inset-0 bg-black/80 z-[100] flex items-center justify-center">
+  <h1 id="countdown-text" class="text-9xl font-bold text-white animate-pulse">3</h1>
+</div>
+
+<div id="modal-victory" class="hidden fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4">
+  <div class="glass bg-white dark:bg-gray-900 p-8 rounded-2xl max-w-lg w-full text-center">
+    <i class="fa-solid fa-trophy text-6xl text-yellow-400 mb-4"></i>
+    <h2 id="victory-title" class="text-3xl font-bold mb-2">Race Complete!</h2>
+    <p id="victory-desc" class="text-lg text-gray-600 dark:text-gray-300 mb-6">You found the target.</p>
+
+    <div class="bg-gray-100 dark:bg-gray-800 p-4 rounded-lg mb-6 text-left max-h-60 overflow-y-auto">
+      <h3 class="font-bold mb-2 sticky top-0 bg-gray-100 dark:bg-gray-800 py-1">Your Route:</h3>
+      <div id="victory-path" class="text-sm space-y-1"></div>
+    </div>
+
+    <button onclick="UI.showScreen('menu')" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg">Return to Menu</button>
+  </div>
+</div>
+
+<!-- Application Logic -->
+<script>
+// --- 1. CONFIGURATION & STATE ---
+const API_BASE = "https://en.wikipedia.org/w/api.php?origin=*&format=json";
+const REQUIRED_DOMAIN = "@panthers.pequannock.org";
+
+const EASY_TARGETS = [
+  "Earth", "United States", "Water", "World War II", "Albert Einstein",
+  "Mathematics", "Internet", "Harry Potter", "Apple Inc.", "Pizza",
+  "Dinosaur", "Sun", "Basketball", "Music", "William Shakespeare",
+  "Moon", "Dog", "Cat", "Brain", "Oxygen", "Video game", "YouTube"
+];
+
+const State = {
+  authenticated: false,
+  pendingRoom: null,
+  mode: 'single',
+  startArticle: '',
+  targetArticle: '',
+  currentArticle: '',
+  targetCategories: [],
+  path: [],
+  htmlHistory: [],
+  clicks: 0,
+  startTime: null,
+  timerInterval: null,
+  isHost: false,
+  roomCode: null
+};
+
+// --- 2. AUTHENTICATION (School Gate) ---
+const Auth = {
+  verify() {
+    const emailInput = document.getElementById('student-email').value.trim().toLowerCase();
+    if (emailInput.endsWith(REQUIRED_DOMAIN)) {
+      State.authenticated = true;
+      document.getElementById('login-error').classList.add('hidden');
+
+      if (State.pendingRoom) {
+        UI.showScreen('multiplayer');
+        document.getElementById('join-code').value = State.pendingRoom;
+        Multiplayer.joinGame(State.pendingRoom);
+        State.pendingRoom = null;
+      } else {
+        UI.showScreen('menu');
+      }
+    } else {
+      document.getElementById('login-error').classList.remove('hidden');
+    }
+  }
+};
+
+// --- 3. WIKIPEDIA API WRAPPER ---
+const WikiAPI = {
+  async fetchArticle(title) {
+    const res = await fetch(`${API_BASE}&action=parse&page=${encodeURIComponent(title)}&prop=text|categories|links|displaytitle&redirects=1`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.info);
+    return {
+      title: data.parse.title,
+      html: data.parse.text['*'],
+      categories: data.parse.categories ? data.parse.categories.map(c => c['*']) : [],
+      links: data.parse.links ? data.parse.links.filter(l => l.ns === 0).map(l => l['*']) : []
+    };
+  },
+
+  async getRandomArticle() {
+    const res = await fetch(`${API_BASE}&action=query&list=random&rnnamespace=0&rnlimit=1`);
+    const data = await res.json();
+    return data.query.random[0].title;
+  },
+
+  async getIncomingLinks(title) {
+    const res = await fetch(`${API_BASE}&action=query&prop=linkshere&titles=${encodeURIComponent(title)}&lhnamespace=0&lhlimit=50`);
+    const data = await res.json();
+    const pages = data.query.pages;
+    const pageId = Object.keys(pages)[0];
+    return pages[pageId] && pages[pageId].linkshere ? pages[pageId].linkshere.map(l => l.title) : [];
+  }
+};
+
+// --- 4. GUARANTEED REACHABILITY ENGINE ---
+const Engine = {
+  async generateRoute(difficulty = 'medium', retries = 3) {
+    if (retries === 0) return { start: "New York City", target: "Water" };
+
+    UI.showLoading(true);
+    try {
+      let target;
+      let hops;
+
+      if (difficulty === 'easy') {
+        target = EASY_TARGETS[Math.floor(Math.random() * EASY_TARGETS.length)];
+        hops = 3;
+      } else if (difficulty === 'medium') {
+        target = await WikiAPI.getRandomArticle();
+        hops = 5;
+      } else {
+        target = await WikiAPI.getRandomArticle();
+        hops = 8;
+      }
+
+      let current = target;
+
+      for (let i = 0; i < hops; i++) {
+        let links = await WikiAPI.getIncomingLinks(current);
+        if (!links.length) break;
+        current = links[Math.floor(Math.random() * links.length)];
+      }
+
+      const startData = await WikiAPI.fetchArticle(current);
+      if (startData.links.includes(target) || current === target) {
+        return await this.generateRoute(difficulty, retries - 1);
+      }
+
+      UI.showLoading(false);
+      return { start: current, target: target };
+    } catch (e) {
+      console.error("Engine generation failed, retrying.", e);
+      return await this.generateRoute(difficulty, retries - 1);
+    }
+  },
+
+  calculateDistance(currentLinks, currentCategories) {
+    if (currentLinks.includes(State.targetArticle)) return { label: 'VERY HOT', color: 'text-red-500' };
+    const sharedCats = currentCategories.filter(c => State.targetCategories.includes(c));
+    if (sharedCats.length > 0) return { label: 'WARM', color: 'text-orange-500' };
+    return State.clicks % 2 === 0 ? { label: 'COLD', color: 'text-blue-400' } : { label: 'FREEZING', color: 'text-blue-300' };
+  }
+};
+
+// --- 5. GAME LOGIC ---
+const Game = {
+  async startDynamic(difficulty) {
+    const route = await Engine.generateRoute(difficulty);
+    this.init(route.start, route.target);
+  },
+
+  async init(start, target) {
+    State.startArticle = start;
+    State.targetArticle = target;
+    State.path = [];
+    State.htmlHistory = [];
+    State.clicks = 0;
+
+    UI.showScreen('game');
+    document.getElementById('hud-target').innerText = target;
+    document.getElementById('hud-clicks').innerText = '0';
+
+    UI.showLoading(true);
+    const targetData = await WikiAPI.fetchArticle(target);
+    State.targetCategories = targetData.categories;
+
+    if (State.mode === 'multi') {
+      UI.syncCountdown(() => {
+        this.startTimer();
+        this.navigate(start, true);
+      });
+    } else {
+      this.startTimer();
+      this.navigate(start, true);
+    }
+  },
+
+  async navigate(title, isStart = false) {
+    UI.showLoading(true);
+    try {
+      const data = await WikiAPI.fetchArticle(title);
+
+      State.currentArticle = data.title;
+      if (!isStart) {
+        State.clicks++;
+        State.path.push(data.title);
+        State.htmlHistory.push(data);
+      } else {
+        State.path = [data.title];
+        State.htmlHistory = [data];
+      }
+
+      this.renderPage(data);
+
+      if (data.title === State.targetArticle) {
+        this.triggerWin();
+        return;
+      }
+
+      const distance = Engine.calculateDistance(data.links, data.categories);
+      UI.updateDistance(distance.label, distance.color);
+      if (State.mode === 'multi') Multiplayer.sendUpdate(distance.label);
+
+    } catch (e) {
+      alert("Failed to load article. Please try undoing or clicking another link.");
+    }
+    UI.showLoading(false);
+  },
+
+  undo() {
+    if (State.path.length <= 1) return;
+    State.path.pop();
+    State.htmlHistory.pop();
+    State.clicks++;
+
+    const previousData = State.htmlHistory[State.htmlHistory.length - 1];
+    State.currentArticle = previousData.title;
+
+    this.renderPage(previousData);
+    const distance = Engine.calculateDistance(previousData.links, previousData.categories);
+    UI.updateDistance(distance.label, distance.color);
+    if (State.mode === 'multi') Multiplayer.sendUpdate(distance.label);
+  },
+
+  renderPage(data) {
+    document.getElementById('article-title').innerText = data.title;
+    document.getElementById('hud-clicks').innerText = State.clicks;
+
+    const pathHtml = State.path.map((p, i) =>
+      `<span>${p}</span>${i < State.path.length - 1 ? '<i class="fa-solid fa-chevron-right text-xs mx-1"></i>' : ''}`
+    ).join('');
+    document.getElementById('path-history').innerHTML = pathHtml;
+
+    const contentDiv = document.getElementById('wiki-content');
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(data.html, 'text/html');
+
+    doc.querySelectorAll('a').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href && href.startsWith('/wiki/')) {
+        if (href.includes(':')) {
+          a.style.pointerEvents = 'none';
+          a.style.color = '#9ca3af';
+        } else {
+          a.dataset.title = decodeURIComponent(href.replace('/wiki/', ''));
+          a.href = "#";
         }
-      };
+      } else if (href && href.startsWith('#')) {
+        a.href = "javascript:void(0)";
+      } else {
+        a.style.pointerEvents = 'none';
+        a.style.color = '#9ca3af';
+      }
+    });
 
-      // --- 3. GUARANTEED REACHABILITY ENGINE ---
-      const Engine = {
-        async generateRoute() {
-          UI.showLoading(true);
-          try {
-            let target = await WikiAPI.getRandomArticle();
-            let current = target;
+    contentDiv.innerHTML = doc.body.innerHTML;
+  },
 
-            // Back-chain 3-4 hops
-            const hops = Math.floor(Math.random() * 2) + 3;
-            for(let i=0; i<hops; i++) {
-              let links = await WikiAPI.getIncomingLinks(current);
-              if (!links.length) break;
-              current = links[Math.floor(Math.random() * links.length)];
-            }
+  startTimer() {
+    State.startTime = Date.now();
+    clearInterval(State.timerInterval);
+    State.timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - State.startTime) / 1000);
+      const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      document.getElementById('hud-time').innerText = `${m}:${s}`;
+    }, 1000);
+  },
 
-            // Validation: Ensure start doesn't link DIRECTLY to target (1 click away)
-            const startData = await WikiAPI.fetchArticle(current);
-            if (startData.links.includes(target)) {
-              // Fallback to preset if validation fails to save generation time
-              return PRESETS[Math.floor(Math.random() * PRESETS.length)];
-            }
+  triggerWin() {
+    clearInterval(State.timerInterval);
+    const timeStr = document.getElementById('hud-time').innerText;
+    if (State.mode === 'multi') Multiplayer.sendWin(timeStr);
 
-            UI.showLoading(false);
-            return { start: current, target: target };
-          } catch (e) {
-            console.error("Engine generation failed, using preset.", e);
-            UI.showLoading(false);
-            return PRESETS[Math.floor(Math.random() * PRESETS.length)];
-          }
-        },
+    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
 
-        calculateDistance(currentLinks, currentCategories) {
-          // VERY HOT: Target is directly linked in the current article
-          if (currentLinks.includes(State.targetArticle)) return { label: ' VERY HOT', color: 'text-red-500' };
+    document.getElementById('modal-victory').classList.remove('hidden');
+    document.getElementById('victory-title').innerText = "You Won!";
+    document.getElementById('victory-title').classList.remove('text-red-500');
+    document.getElementById('victory-desc').innerText = `You reached ${State.targetArticle} in ${State.clicks} clicks and ${timeStr}.`;
 
-          // WARM: Shared categories (topic similarity heuristic)
-          const sharedCats = currentCategories.filter(c => State.targetCategories.includes(c));
-          if (sharedCats.length > 0) return { label: ' WARM', color: 'text-orange-500' };
+    document.getElementById('victory-path').innerHTML = State.path.map((p, i) => `<div><b>${i + 1}.</b> ${p}</div>`).join('');
+  }
+};
 
-          // COLD/FREEZING based on path length as basic visual variation
-          return State.clicks % 2 === 0 ? { label: ' COLD', color: 'text-blue-400' } : { label: ' FREEZING', color: 'text-blue-300' };
-        }
-      };
+// --- 6. PEERJS MULTIPLAYER ---
+const Multiplayer = {
+  peer: null,
+  conn: null,
 
-      // --- 4. GAME LOGIC ---
-      const Game = {
-        async startRandomGuaranteed() {
-          const route = await Engine.generateRoute();
-          this.init(route.start, route.target);
-        },
+  initPeer(id = null) {
+    const peerId = id || 'RACE-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+    this.peer = new Peer(peerId);
 
-        async startPreset(index) {
-          const route = PRESETS[index];
-          this.init(route.start, route.target);
-        },
+    this.peer.on('error', err => {
+      console.error(err);
+      alert("Connection error: " + err.type);
+    });
 
-        async init(start, target) {
-          State.startArticle = start;
-          State.targetArticle = target;
-          State.path = [];
-          State.htmlHistory = [];
-          State.clicks = 0;
+    return peerId;
+  },
 
-          UI.showScreen('game');
-          document.getElementById('hud-target').innerText = target;
-          document.getElementById('hud-clicks').innerText = '0';
+  hostGame() {
+    State.mode = 'multi';
+    State.isHost = true;
+    this.initPeer();
 
-          // Pre-fetch target categories for distance heuristic
-          UI.showLoading(true);
-          const targetData = await WikiAPI.fetchArticle(target);
-          State.targetCategories = targetData.categories;
+    this.peer.on('open', id => {
+      State.roomCode = id;
+      document.getElementById('room-code-display').classList.remove('hidden');
+      document.getElementById('share-link').value = window.location.href.split('?')[0] + '?room=' + id;
+    });
 
-          if (State.mode === 'multi') {
-            UI.syncCountdown(() => {
-              this.startTimer();
-              this.navigate(start, true);
-            });
-          } else {
-            this.startTimer();
-            this.navigate(start, true);
-          }
-        },
+    this.peer.on('connection', connection => {
+      this.conn = connection;
+      this.setupConnectionEvents();
+      document.getElementById('host-status').innerText = "Opponent connected! Starting in 3s...";
+      document.getElementById('host-status').classList.replace('text-yellow-500', 'text-green-500');
 
-        async navigate(title, isStart = false) {
-          UI.showLoading(true);
-          try {
-            const data = await WikiAPI.fetchArticle(title);
+      const selectedDifficulty = document.getElementById('host-difficulty').value;
 
-            // Update State
-            State.currentArticle = data.title;
-            if (!isStart) {
-              State.clicks++;
-              State.path.push(data.title);
-              State.htmlHistory.push(data); // for undo
-            } else {
-              State.path = [data.title];
-              State.htmlHistory = [data];
-            }
+      setTimeout(async () => {
+        const route = await Engine.generateRoute(selectedDifficulty);
+        this.conn.send({ type: 'START', route });
+        Game.init(route.start, route.target);
+      }, 2000);
+    });
+  },
 
-            // Render
-            this.renderPage(data);
+  joinGame(forceCode = null) {
+    State.mode = 'multi';
+    State.isHost = false;
+    const roomCode = forceCode || document.getElementById('join-code').value.trim().toUpperCase();
+    if (!roomCode) return alert("Enter a code");
 
-            // Check Win Condition
-            if (data.title === State.targetArticle) {
-              this.triggerWin();
-              return;
-            }
+    document.getElementById('join-status').classList.remove('hidden');
+    this.initPeer();
 
-            // Calculate Distance
-            const distance = Engine.calculateDistance(data.links, data.categories);
-            UI.updateDistance(distance.label, distance.color);
+    this.peer.on('open', () => {
+      this.conn = this.peer.connect(roomCode, { reliable: true });
+      this.setupConnectionEvents();
+      this.conn.on('open', () => {
+        document.getElementById('join-status').innerText = "Connected! Waiting for host...";
+      });
+    });
+  },
 
-            // Multiplayer Sync
-            if (State.mode === 'multi') Multiplayer.sendUpdate(distance.label);
+  setupConnectionEvents() {
+    document.getElementById('hud-opponent').classList.remove('hidden');
+    this.conn.on('data', data => {
+      if (data.type === 'START') {
+        Game.init(data.route.start, data.route.target);
+      } else if (data.type === 'UPDATE') {
+        document.getElementById('opp-clicks').innerText = data.clicks;
+        document.getElementById('opp-status').innerText = data.status;
+      } else if (data.type === 'WIN') {
+        clearInterval(State.timerInterval);
+        document.getElementById('modal-victory').classList.remove('hidden');
+        document.getElementById('victory-title').innerText = "Opponent Won!";
+        document.getElementById('victory-title').classList.add('text-red-500');
+        document.getElementById('victory-desc').innerText = `They finished in ${data.clicks} clicks and ${data.time}.`;
+        document.getElementById('victory-path').innerHTML = data.path.map((p, i) => `<div><b>${i + 1}.</b> ${p}</div>`).join('');
+      }
+    });
+  },
 
-          } catch (e) {
-            alert("Failed to load article. Try another link.");
-          }
-          UI.showLoading(false);
-        },
+  sendUpdate(statusLabel) {
+    if (this.conn && this.conn.open) {
+      this.conn.send({ type: 'UPDATE', clicks: State.clicks, status: statusLabel });
+    }
+  },
 
-        undo() {
-          if (State.path.length <= 1) return; // Cannot undo start page
-          State.path.pop();
-          State.htmlHistory.pop();
-          State.clicks++; // Undo costs a click!
+  sendWin(timeStr) {
+    if (this.conn && this.conn.open) {
+      this.conn.send({ type: 'WIN', clicks: State.clicks, time: timeStr, path: State.path });
+    }
+  }
+};
 
-          const previousData = State.htmlHistory[State.htmlHistory.length - 1];
-          State.currentArticle = previousData.title;
+// --- 7. UI MANAGERS & EVENT LISTENERS ---
+const UI = {
+  screens: ['login', 'menu', 'singleplayer', 'multiplayer', 'game'],
 
-          this.renderPage(previousData);
-          const distance = Engine.calculateDistance(previousData.links, previousData.categories);
-          UI.updateDistance(distance.label, distance.color);
-          if (State.mode === 'multi') Multiplayer.sendUpdate(distance.label);
-        },
+  showScreen(id) {
+    this.screens.forEach(s => document.getElementById(`screen-${s}`).classList.add('hidden'));
+    document.getElementById(`screen-${id}`).classList.remove('hidden');
+    if (id === 'menu') {
+      document.getElementById('hud-opponent').classList.add('hidden');
+      clearInterval(State.timerInterval);
+    }
+  },
 
-        renderPage(data) {
-          document.getElementById('article-title').innerText = data.title;
-          document.getElementById('hud-clicks').innerText = State.clicks;
+  goHome() {
+    if (State.authenticated) {
+      this.showScreen('menu');
+    } else {
+      this.showScreen('login');
+    }
+  },
 
-          // Update Path History UI
-          const pathHtml = State.path.map((p, i) =>
-            `<span>${p}</span>${i < State.path.length - 1 ? '<i class="fa-solid fa-chevron-right text-xs"></i>' : ''}`
-          ).join('');
-          document.getElementById('path-history').innerHTML = pathHtml;
+  showLoading(show) {
+    const loader = document.getElementById('wiki-loading');
+    const content = document.getElementById('wiki-content');
+    if (show) {
+      loader.classList.remove('hidden');
+      content.classList.add('hidden');
+    } else {
+      loader.classList.add('hidden');
+      content.classList.remove('hidden');
+    }
+  },
 
-          // Sanitize and Insert HTML
-          const contentDiv = document.getElementById('wiki-content');
+  updateDistance(label, colorClass) {
+    const el = document.getElementById('hud-distance');
+    el.innerText = label;
+    el.className = `font-bold text-lg ${colorClass}`;
+  },
 
-          // Strip scripts and risky tags using DOMParser
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(data.html, 'text/html');
+  copyLink(inputEl) {
+    inputEl.select();
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(inputEl.value);
+    } else {
+      document.execCommand('copy');
+    }
+    alert('Link copied to clipboard!');
+  },
 
-          // Convert relative wiki links to interceptable elements
-          doc.querySelectorAll('a').forEach(a => {
-            const href = a.getAttribute('href');
-            if (href && href.startsWith('/wiki/')) {
-              // Ignore files, categories, special pages
-              if (href.includes(':')) {
-                a.style.pointerEvents = 'none';
-                a.style.color = '#9ca3af';
-              } else {
-                a.dataset.title = decodeURIComponent(href.replace('/wiki/', ''));
-                a.href = "#"; // Prevent default browser nav
-              }
-            } else if (href && href.startsWith('#')) {
-              // Anchor link inside page, allow default but prevent navigation
-              a.href = "javascript:void(0)";
-            } else {
-              // External or other links - disable
-              a.style.pointerEvents = 'none';
-              a.style.color = '#9ca3af';
-            }
-          });
+  syncCountdown(callback) {
+    const overlay = document.getElementById('overlay-countdown');
+    const text = document.getElementById('countdown-text');
+    overlay.classList.remove('hidden');
+    let count = 3;
+    text.innerText = count;
 
-          contentDiv.innerHTML = doc.body.innerHTML;
-        },
+    const interval = setInterval(() => {
+      count--;
+      if (count > 0) {
+        text.innerText = count;
+      } else if (count === 0) {
+        text.innerText = "GO!";
+      } else {
+        clearInterval(interval);
+        overlay.classList.add('hidden');
+        callback();
+      }
+    }, 1000);
+  },
 
-        startTimer() {
-          State.startTime = Date.now();
-          clearInterval(State.timerInterval);
-          State.timerInterval = setInterval(() => {
-            const elapsed = Math.floor((Date.now() - State.startTime) / 1000);
-            const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
-            const s = String(elapsed % 60).padStart(2, '0');
-            document.getElementById('hud-time').innerText = `${m}:${s}`;
-          }, 1000);
-        },
+  toggleTheme() {
+    document.documentElement.classList.toggle('dark');
+  },
 
-        triggerWin() {
-          clearInterval(State.timerInterval);
-          const timeStr = document.getElementById('hud-time').innerText;
-          if(State.mode === 'multi') Multiplayer.sendWin(timeStr);
+  init() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const room = urlParams.get('room');
 
-          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+    if (room) {
+      State.pendingRoom = room;
+    }
 
-          document.getElementById('modal-victory').classList.remove('hidden');
-          document.getElementById('victory-title').innerText = "You Won!";
-          document.getElementById('victory-desc').innerText = `You reached ${State.targetArticle} in ${State.clicks} clicks and ${timeStr}.`;
+    this.showScreen('login');
 
-          document.getElementById('victory-path').innerHTML = State.path.map((p, i) => `<div><b>${i+1}.</b> ${p}</div>`).join('');
-        }
-      };
+    document.getElementById('wiki-content').addEventListener('click', (e) => {
+      const a = e.target.closest('a');
+      if (a && a.dataset.title) {
+        e.preventDefault();
+        Game.navigate(a.dataset.title);
+      }
+    });
 
-      // --- 5. PEERJS MULTIPLAYER ---
-      const Multiplayer = {
-        peer: null,
-        conn: null,
+    document.getElementById('student-email').addEventListener('keypress', function (e) {
+      if (e.key === 'Enter') Auth.verify();
+    });
+  }
+};
 
-        initPeer(id = null) {
-          // Generate a short ID if host
-          const peerId = id || 'RACE-' + Math.random().toString(36).substr(2, 4).toUpperCase();
-          this.peer = new Peer(peerId);
-
-          this.peer.on('error', err => {
-            console.error(err);
-            alert("Connection error: " + err.type);
-          });
-
-          return peerId;
-        },
-
-        hostGame() {
-          State.mode = 'multi';
-          State.isHost = true;
-          const roomCode = this.initPeer();
-
-          this.peer.on('open', id => {
-            State.roomCode = id;
-            document.getElementById('room-code-display').classList.remove('hidden');
-            document.getElementById('share-link').value = window.location.href.split('?')[0] + '?room=' + id;
-          });
-
-          this.peer.on('connection', connection => {
-            this.conn = connection;
-            this.setupConnectionEvents();
-            document.getElementById('host-status').innerText = "Opponent connected! Starting in 3s...";
-            document.getElementById('host-status').classList.replace('text-yellow-500', 'text-green-500');
-
-            // Generate Route and start
-            setTimeout(async () => {
-              const route = await Engine.generateRoute();
-              this.conn.send({ type: 'START', route });
-              Game.init(route.start, route.target);
-            }, 2000);
-          });
-        },
-
-        joinGame(forceCode = null) {
-          State.mode = 'multi';
-          State.isHost = false;
-          const roomCode = forceCode || document.getElementById('join-code').value.trim().toUpperCase();
-          if(!roomCode) return alert("Enter a code");
-
-          document.getElementById('join-status').classList.remove('hidden');
-          this.initPeer(); // Joiner gets random peer ID
-
-          this.peer.on('open', () => {
-            this.conn = this.peer.connect(roomCode, { reliable: true });
-            this.setupConnectionEvents();
-            this.conn.on('open', () => {
-              document.getElementById('join-status').innerText = "Connected! Waiting for host...";
-            });
-          });
-        },
-
-        setupConnectionEvents() {
-          document.getElementById('hud-opponent').classList.remove('hidden');
-          this.conn.on('data', data => {
-            if (data.type === 'START') {
-              Game.init(data.route.start, data.route.target);
-            } else if (data.type === 'UPDATE') {
-              document.getElementById('opp-clicks').innerText = data.clicks;
-              document.getElementById('opp-status').innerText = data.status;
-            } else if (data.type === 'WIN') {
-              clearInterval(State.timerInterval);
-              document.getElementById('modal-victory').classList.remove('hidden');
-              document.getElementById('victory-title').innerText = "Opponent Won!";
-              document.getElementById('victory-title').classList.add('text-red-500');
-              document.getElementById('victory-desc').innerText = `They finished in ${data.clicks} clicks and ${data.time}.`;
-              document.getElementById('victory-path').innerHTML = data.path.map((p, i) => `<div><b>${i+1}.</b> ${p}</div>`).join('');
-            }
-          });
-        },
-
-        sendUpdate(statusLabel) {
-          if(this.conn && this.conn.open) {
-            this.conn.send({ type: 'UPDATE', clicks: State.clicks, status: statusLabel });
-          }
-        },
-
-        sendWin(timeStr) {
-          if(this.conn && this.conn.open) {
-            this.conn.send({ type: 'WIN', clicks: State.clicks, time: timeStr, path: State.path });
-          }
-        }
-      };
-
-      // --- 6. UI MANAGERS & EVENT LISTENERS ---
-      const UI = {
-        screens: ['menu', 'singleplayer', 'multiplayer', 'game'],
-
-        showScreen(id) {
-          this.screens.forEach(s => document.getElementById(`screen-${s}`).classList.add('hidden'));
-          document.getElementById(`screen-${id}`).classList.remove('hidden');
-          if(id === 'menu') {
-            // Reset
-            document.getElementById('hud-opponent').classList.add('hidden');
-            clearInterval(State.timerInterval);
-          }
-        },
-
-        showLoading(show) {
-          const loader = document.getElementById('wiki-loading');
-          const content = document.getElementById('wiki-content');
-          if (show) {
-            loader.classList.remove('hidden');
-            content.classList.add('hidden');
-          } else {
-            loader.classList.add('hidden');
-            content.classList.remove('hidden');
-          }
-        },
-
-        updateDistance(label, colorClass) {
-          const el = document.getElementById('hud-distance');
-          el.innerText = label;
-          el.className = `font-bold text-lg ${colorClass}`;
-        },
-
-        syncCountdown(callback) {
-          const overlay = document.getElementById('overlay-countdown');
-          const text = document.getElementById('countdown-text');
-          overlay.classList.remove('hidden');
-          let count = 3;
-          text.innerText = count;
-
-          const interval = setInterval(() => {
-            count--;
-            if(count > 0) {
-              text.innerText = count;
-            } else if (count === 0) {
-              text.innerText = "GO!";
-            } else {
-              clearInterval(interval);
-              overlay.classList.add('hidden');
-              callback();
-            }
-          }, 1000);
-        },
-
-        toggleTheme() {
-          document.documentElement.classList.toggle('dark');
-        },
-
-        init() {
-          // Populate Presets
-          const presetContainer = document.getElementById('preset-list');
-          PRESETS.forEach((p, i) => {
-            presetContainer.innerHTML += `
-<button onclick="Game.startPreset(${i})" class="flex justify-between items-center bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 p-3 rounded-lg transition border border-gray-200 dark:border-gray-700">
-<span class="font-semibold">${p.start}</span>
-<i class="fa-solid fa-arrow-right text-gray-400 text-sm"></i>
-<span class="font-semibold text-blue-600 dark:text-blue-400">${p.target}</span>
-</button>
-`;
-          });
-
-          // Check URL for room code
-          const urlParams = new URLSearchParams(window.location.search);
-          const room = urlParams.get('room');
-          if (room) {
-            this.showScreen('multiplayer');
-            document.getElementById('join-code').value = room;
-            setTimeout(() => Multiplayer.joinGame(room), 500);
-          }
-
-          // Scope Link Interception to `#wiki-content`
-          document.getElementById('wiki-content').addEventListener('click', (e) => {
-            const a = e.target.closest('a');
-            if (a && a.dataset.title) {
-              e.preventDefault();
-              Game.navigate(a.dataset.title);
-            }
-          });
-        }
-      };
-
-      // Initialize App on Load
-      window.addEventListener('DOMContentLoaded', () => UI.init());
-    </script>
-  </body>
+window.addEventListener('DOMContentLoaded', () => UI.init());
+</script>
+</body>
 </html>
